@@ -13,6 +13,7 @@ import InvProblem
 import Optimization
 import Directives
 import Inversion
+import Parallel
 import Tests
 
 __version__   = '0.1.1'

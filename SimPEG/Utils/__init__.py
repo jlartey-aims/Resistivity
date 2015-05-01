@@ -5,6 +5,7 @@ from lrmutils import volTetra, faceInfo, indexCube
 from interputils import interpmat
 from ipythonutils import easyAnimate as animate
 from CounterUtils import *
+from DataWrappers import *
 import ModelBuilder
 import SolverUtils
 
