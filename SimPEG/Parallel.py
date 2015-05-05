@@ -53,6 +53,54 @@ def adjustMKLVectorization(nt=1):
     finally:
         mkl.set_num_threads(nt)
 
+class SystemGraph(networkx.DiGraph):
+
+    def _codeStatus(self, data):
+        
+        status = 0
+        
+        if 'jobs' in data:
+            status = 1 * data['jobs'][-1].ready() + 1
+            if status > 1:
+                status += 1 * (not data['jobs'][-1].successful())
+        
+        return status 
+
+    def _codeGraph(self):
+        from networkx.readwrite import json_graph
+        
+        G = networkx.DiGraph()
+        
+        for e in self.edges_iter():
+            G.add_edge(e[0], e[1])
+        
+        for n, data in self.nodes_iter(data=True):
+            G.add_node(n, status=self._codeStatus(data))
+        
+        return json_graph.node_link_data(G)
+
+    def RenderHTML(self):
+        import pkg_resources
+        from IPython.core import display
+        import time
+
+        data = str(self._codeGraph())
+        uniqueID = hash(time.time())
+
+        formatstr = {
+            'uniqueID': 'Graph%s'%uniqueID,
+            'JSONData': data,
+        }
+
+        code = pkg_resources.resource_string('SimPEG', 'Resources/Parallel/SystemGraph.html')%formatstr
+
+        return display.HTML(data=code)._repr_html_()
+
+try:
+    get_ipython().display_formatter.formatters['text/html'].for_type(SystemGraph, SystemGraph.RenderHTML)
+except NameError:
+    pass
+
 class SystemSolver(object):
 
     def __init__(self, dispatcher, schedule):
@@ -71,7 +119,7 @@ class SystemSolver(object):
 
         chunksPerWorker = getattr(self.dispatcher, 'chunksPerWorker', 1)
 
-        G = networkx.DiGraph()
+        G = SystemGraph()
 
         mainNode = 'Beginning'
         G.add_node(mainNode)
