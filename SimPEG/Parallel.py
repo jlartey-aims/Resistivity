@@ -250,7 +250,7 @@ class SystemSolver(object):
 
 class RemoteInterface(object):
 
-    def __init__(self, profile=None, MPI=None, nThreads=1):
+    def __init__(self, profile=None, MPI=None, nThreads=1, bootstrap=None):
 
         # TODO: Add interface for namespace bootstrapping from
         #       the dispatcher / problem side
@@ -315,12 +315,9 @@ class RemoteInterface(object):
 
         self.nThreads = nThreads
 
-        # Generate 'par' object for Problem to grab
-        self.par = {
-            'pclient':      self.pclient,
-            'dview':        self.dview,
-            'lview':        self.pclient.load_balanced_view(),
-        }
+        if bootstrap is not None:
+            for command in bootstrap.strip().split('\n'):
+                dview.execute(command.strip())
 
     @property
     def nThreads(self):
