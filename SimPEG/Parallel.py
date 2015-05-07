@@ -6,7 +6,54 @@ import networkx
 DEFAULT_MPI = True
 MPI_BELLWETHERS = ['PMI_SIZE', 'OMPI_UNIVERSE_SIZE']
 
+class SuperReference(object):
+    '''
+    Object that can be called to return a reference, but
+    will only be schedulable on the correct worker(s) if
+    its 'lrank' parameter has been set.
+    '''
+
+    def __init__(self, ref, lrank=None):
+
+        if (lrank is None) or (type(lrank) is list):
+            self.rank = lrank
+        else:
+            self.rank = [lrank]
+            
+        self.ref = ref
+
+    def __call__(self, *args, **kwargs):
+
+        from IPython.parallel import depend
+        from IPython.parallel.error import UnmetDependency
+
+        if (self.rank is not None) and (globals().get('rank', None) not in self.rank):
+            raise UnmetDependency('Global \'rank\' does not satisfy requirements')
+
+        return self.ref(*args, **kwargs)
+
+class Endpoint(object):
+    '''
+    Object that holds the namespace of the SimPEG parallel
+    footprint on the remote workers.
+    '''
+
+    localFields = {}
+    globalFields = {}
+    localSystems = {}
+    functions = {}
+
+    def __init__(self):
+
+        pass
+
+
 class SystemGraph(networkx.DiGraph):
+    '''
+    NetworkX Directed Graph subclass that knows about
+    job status information, and can return a representation
+    of itself for use in interactive debugging/testing.
+    '''
 
     @staticmethod
     def _codeStatus(data):
@@ -64,6 +111,7 @@ class SystemSolver(object):
 
     def __call__(self, entry, isrcs):
         
+        # TODO: Replace with SuperReference instances
         fnRef = self.schedule[entry]['solve']
         clearRef = self.schedule[entry]['clear']
         reduceLabels = self.schedule[entry]['reduce']
@@ -79,6 +127,7 @@ class SystemSolver(object):
         G.add_node(mainNode)
 
         # Parse sources
+        # TODO: Get from Survey somehow?
         nsrc = self.dispatcher.nsrc
         if isrcs is None:
             isrcslist = range(nsrc)
@@ -93,6 +142,7 @@ class SystemSolver(object):
             except TypeError:
                 isrcslist = [isrcs]
 
+        # TODO: Replace w/ hook into Endpoint classes
         systemsOnWorkers = dview['localSystem.keys()']
         ids = dview['rank']
         tags = set()
@@ -143,6 +193,9 @@ class SystemSolver(object):
                     rank = ids[i]
 
                     with lview.temp_flags(block=False, after=systemJobs):
+                        # TODO: Remove dependency on self._hasSystemRank, once the SuperReferences
+                        #       are able to be used. They will automatically schedule only on the
+                        #       correct (allowed) systems.
                         job = lview.apply(depend(self._hasSystemRank, tag, rank)(clearRef), tag)
                         clearJobs.append(job)
                         label = 'Wrap: %d, %d, %d'%(tag[0],tag[1], i)
@@ -182,6 +235,7 @@ class SystemSolver(object):
     def wait(self, G):
         self.dispatcher.remote.lview.wait(G.node['End']['jobs'] if G.node['End']['jobs'] else (G.node[wn]['jobs'] for wn in (G.predecessors(tn)[0] for tn in G.predecessors('End'))))
 
+    # TODO: Hopefully obsoleted by SuperReference
     @staticmethod
     @interactive
     def _hasSystemRank(tag, wid):
@@ -197,6 +251,9 @@ class SystemSolver(object):
 class RemoteInterface(object):
 
     def __init__(self, profile=None, MPI=None, nThreads=1):
+
+        # TODO: Add interface for namespace bootstrapping from
+        #       the dispatcher / problem side
 
         if profile is not None:
             pupdate = {'profile': profile}
