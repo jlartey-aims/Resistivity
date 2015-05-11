@@ -44,6 +44,7 @@ class Endpoint(object):
     localSystems = {}               # Dictionary of local subsystem / problem objects
     functions = {}                  # Dictionary of callables to carry out modelling / etc.
     fieldspec = {}                  # Dictionary of callables to setup field storage objects
+    baseSystemConfig = {}           # Base configuration for system
 
     def setupLocalFields(self, whichfields=None):
 
@@ -55,7 +56,9 @@ class Endpoint(object):
 
     def setupLocalSystem(self, subConfig):
 
-        self.localSystems[subConfig['tag']] = self.systemFactory(subConfig)
+        systemConfig = self.baseSystemConfig.copy()
+        systemConfig.update(subConfig)
+        self.localSystems[subConfig['tag']] = self.systemFactory(systemConfig)
 
 
 class SystemGraph(networkx.DiGraph):
@@ -114,18 +117,18 @@ except NameError:
 
 class SystemSolver(object):
 
-    def __init__(self, dispatcher, endpoint, schedule):
+    def __init__(self, dispatcher, endpointName, schedule):
 
         self.dispatcher = dispatcher
-        self.endpoint = endpoint
+        self.endpointName = endpointName
         self.schedule = schedule
 
     def __call__(self, entry, isrcs):
         
         # TODO: Replace with SuperReference instances
         fnformat = '%s.functions["%s"]'
-        fnRef = Reference(fnformat%(self.endpoint, self.schedule[entry]['solve']))
-        clearRef = Reference(fnformat%(self.endpoint, self.schedule[entry]['clear']))
+        fnRef = Reference(fnformat%(self.endpointName, self.schedule[entry]['solve']))
+        clearRef = Reference(fnformat%(self.endpointName, self.schedule[entry]['clear']))
         reduceLabels = self.schedule[entry]['reduce']
 
         dview = self.dispatcher.remote.dview
@@ -155,7 +158,7 @@ class SystemSolver(object):
                 isrcslist = [isrcs]
 
         # TODO: Replace w/ hook into Endpoint classes
-        systemsOnWorkers = dview['%s.localSystems.keys()'%self.endpoint]
+        systemsOnWorkers = dview['%s.localSystems.keys()'%self.endpointName]
         ids = dview['rank']
         tags = set()
         for ltags in systemsOnWorkers:
@@ -187,7 +190,7 @@ class SystemSolver(object):
                 iworks = 0
                 for work in self._getChunks(isrcslist, int(round(chunksPerWorker*len(relIDs)))):
                     if work:
-                        job = lview.apply(fnRef, Reference(self.endpoint), tag, work)
+                        job = lview.apply(fnRef, Reference(self.endpointName), tag, work)
                         systemJobs.append(job)
                         label = 'Compute: %d, %d, %d'%(tag[0], tag[1], iworks)
                         systemNodes.append(label)
@@ -208,7 +211,7 @@ class SystemSolver(object):
                         # TODO: Remove dependency on self._hasSystemRank, once the SuperReferences
                         #       are able to be used. They will automatically schedule only on the
                         #       correct (allowed) systems.
-                        job = lview.apply(depend(self._hasSystemRank, tag, rank)(clearRef), Reference(self.endpoint), tag)
+                        job = lview.apply(depend(self._hasSystemRank, tag, rank)(clearRef), Reference(self.endpointName), tag)
                         clearJobs.append(job)
                         label = 'Wrap: %d, %d, %d'%(tag[0],tag[1], i)
                         G.add_node(label, jobs=[job])
@@ -218,7 +221,7 @@ class SystemSolver(object):
 
                 for i, sjob in enumerate(systemJobs):
                     with lview.temp_flags(block=False, follow=sjob):
-                        job = lview.apply(clearRef, Reference(self.endpoint), tag)
+                        job = lview.apply(clearRef, Reference(self.endpointName), tag)
                         clearJobs.append(job)
                         label = 'Wrap: %d, %d, %d'%(tag[0],tag[1],i)
                         G.add_node(label, jobs=[job])
@@ -234,8 +237,7 @@ class SystemSolver(object):
         jobs = []
         after = clearJobs
         for label in reduceLabels:
-            key = '%s.localFields["%s"]'%(self.endpoint, label)
-            job = self.dispatcher.remote.reduceLB(Reference(self.endpoint), key, after=after)
+            job = self.dispatcher.remote.reduceLB(Reference(self.endpointName), label, after=after)
             after = job
             if job is not None:
                 jobs.append(job)
@@ -370,7 +372,7 @@ class RemoteInterface(object):
 
         if self.useMPI:
             with self.lview.temp_flags(block=False, after=after):
-                job = self.lview.map(self._reduceJob, xrange(len(self.pclient.ids)), repeat(0), endpoint, repeat(key))
+                job = self.lview.map(self._reduceJob, xrange(len(self.pclient.ids)), repeat(0), repeat(endpoint), repeat(key))
 
             return job
 
@@ -504,7 +506,7 @@ class RemoteInterface(object):
         if not rank == worker:
             raise UnmetDependency
 
-        code = 'endpoint.globalFields[%(key)s] = comm.reduce(%(key)s, root=%(root)d)'
+        code = 'endpoint.globalFields["%(key)s"] = comm.reduce(endpoint.localFields["%(key)s"], root=%(root)d)'
         exec(code%{'key': key, 'root': root})
 
     @staticmethod
