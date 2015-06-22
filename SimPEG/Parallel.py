@@ -539,10 +539,9 @@ class RemoteInterface(object):
     def _adjustMKLVectorization(nt=1):
         try:
             import mkl
+            mkl.set_num_threads(nt)
         except ImportError:
             pass
-        finally:
-            mkl.set_num_threads(nt)
 
     @staticmethod
     def _cdSame(rc):
