@@ -43,7 +43,7 @@ class Endpoint(object):
     globalFields = {}               # Dictionary for storing merged fields
     localSystems = {}               # Dictionary of local subsystem / problem objects
     functions = {}                  # Dictionary of callables to carry out modelling / etc.
-    fieldspec = {}                  # Dictionary of callables to setup field storage objects
+    fieldspec = None                # Dictionary of callables to setup field storage objects
     baseSystemConfig = {}           # Base configuration for system
 
     def setupLocalFields(self, whichfields=None):
@@ -426,6 +426,20 @@ class RemoteInterface(object):
 
         return item
 
+    def remoteMulE0(self, key1, key2, axis=None):
+
+        code_mul = 'temp_field = %(key1)s * %(key2)s'
+        self.e0.execute(code_mul%{'key1': key1, 'key2': key2})
+
+        if axis is not None:
+            code = 'temp_field = temp_field.sum(axis=%(axis)d)'
+            self.e0.execute(code%{'axis': axis})
+
+        item = self.e0['temp_field']
+        self.e0.execute('del temp_field')
+
+        return item
+
     def remoteDifference(self, key1, key2, keyresult):
 
         if self.useMPI:
@@ -487,14 +501,24 @@ class RemoteInterface(object):
     def remoteDifferenceGatherFirst(self, *args):
         self.remoteOpGatherFirst('-', *args)
 
+    # def normFromDifference(self, key):
+
+    #     code = 'temp_norm%(key)s = (%(key)s * %(key)s.conj()).sum(0).sum(0)'
+    #     self.e0.execute(code%{'key': key})
+    #     code = 'temp_norm%(key)s = {key: np.sqrt(temp_norm%(key)s[key]).real for key in temp_norm%(key)s.keys()}'
+    #     self.e0.execute(code%{'key': key})
+    #     result = CommonReducer(self.e0['temp_norm%s'%(key,)])
+    #     self.e0.execute('del temp_norm%s'%(key,))
+
+    #     return result
+
     def normFromDifference(self, key):
 
-        code = 'temp_norm%(key)s = (%(key)s * %(key)s.conj()).sum(0).sum(0)'
+        code = 'temp_norm = (%(key)s * %(key)s.conj()).sum(0).sum(0)'
         self.e0.execute(code%{'key': key})
-        code = 'temp_norm%(key)s = {key: np.sqrt(temp_norm%(key)s[key]).real for key in temp_norm%(key)s.keys()}'
-        self.e0.execute(code%{'key': key})
-        result = CommonReducer(self.e0['temp_norm%s'%(key,)])
-        self.e0.execute('del temp_norm%s'%(key,))
+        code = 'temp_norm = {key: np.sqrt(temp_norm[key] for key in temp_norm)}'
+        result = CommonReducer(self.e0['temp_norm'])
+        self.e0.execute('del temp_norm')
 
         return result
 
@@ -506,8 +530,10 @@ class RemoteInterface(object):
         if not rank == worker:
             raise UnmetDependency
 
-        code = 'endpoint.globalFields["%(key)s"] = comm.reduce(endpoint.localFields["%(key)s"], root=%(root)d)'
-        exec(code%{'key': key, 'root': root})
+        # code = '%(endpoint)s.globalFields["%(key)s"] = comm.reduce(%(endpoint)s.localFields["%(key)s"], root=%(root)d)'
+        # exec(code%{'endpoint': endpoint, 'key': key, 'root': root})
+
+        endpoint.globalFields[key] = comm.reduce(endpoint.localFields[key], root=root)
 
     @staticmethod
     def _adjustMKLVectorization(nt=1):
