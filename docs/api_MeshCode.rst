@@ -18,10 +18,10 @@ Tree Mesh
     :undoc-members:
 
 
-Logically Rectangular Mesh
-==========================
+Curvilinear Mesh
+================
 
-.. automodule:: SimPEG.Mesh.LogicallyRectMesh
+.. automodule:: SimPEG.Mesh.Curvilinear
     :show-inheritance:
     :members:
     :undoc-members:

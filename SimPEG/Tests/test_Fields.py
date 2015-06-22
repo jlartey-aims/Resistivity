@@ -1,7 +1,8 @@
 import unittest
 from SimPEG import *
 
-class DataAndFieldsTest(unittest.TestCase):
+
+class FieldsTest(unittest.TestCase):
 
     def setUp(self):
         mesh = Mesh.TensorMesh([np.ones(n)*5 for n in [10,11,12]],[0,0,-30])
@@ -9,14 +10,14 @@ class DataAndFieldsTest(unittest.TestCase):
         XYZ = Utils.ndgrid(x,x,np.r_[0.])
         srcLoc = np.r_[0,0,0.]
         rxList0 = Survey.BaseRx(XYZ, 'exi')
-        Src0 = Survey.BaseSrc(srcLoc, 'VMD', [rxList0])
+        Src0 = Survey.BaseSrc([rxList0], loc=srcLoc)
         rxList1 = Survey.BaseRx(XYZ, 'bxi')
-        Src1 = Survey.BaseSrc(srcLoc, 'VMD', [rxList1])
+        Src1 = Survey.BaseSrc([rxList1], loc=srcLoc)
         rxList2 = Survey.BaseRx(XYZ, 'bxi')
-        Src2 = Survey.BaseSrc(srcLoc, 'VMD', [rxList2])
+        Src2 = Survey.BaseSrc([rxList2], loc=srcLoc)
         rxList3 = Survey.BaseRx(XYZ, 'bxi')
-        Src3 = Survey.BaseSrc(srcLoc, 'VMD', [rxList3])
-        Src4 = Survey.BaseSrc(srcLoc, 'VMD', [rxList0, rxList1, rxList2, rxList3])
+        Src3 = Survey.BaseSrc([rxList3], loc=srcLoc)
+        Src4 = Survey.BaseSrc([rxList0, rxList1, rxList2, rxList3], loc=srcLoc)
         srcList = [Src0,Src1,Src2,Src3,Src4]
         survey = Survey.BaseSurvey(srcList=srcList)
         self.D = Survey.Data(survey)
@@ -25,25 +26,6 @@ class DataAndFieldsTest(unittest.TestCase):
         self.Src1 = Src1
         self.mesh = mesh
         self.XYZ = XYZ
-
-    def test_overlappingFields(self):
-        self.assertRaises(AssertionError, Problem.Fields, self.F.mesh, self.F.survey,
-                            knownFields={'b':'F'},
-                            aliasFields={'b':['b',(lambda F, b, ind: b)]})
-
-    def test_data(self):
-        V = []
-        for src in self.D.survey.srcList:
-            for rx in src.rxList:
-                v = np.random.rand(rx.nD)
-                V += [v]
-                self.D[src, rx] = v
-                self.assertTrue(np.all(v == self.D[src, rx]))
-        V = np.concatenate(V)
-        self.assertTrue(np.all(V == Utils.mkvc(self.D)))
-
-        D2 = Survey.Data(self.D.survey, V)
-        self.assertTrue(np.all(Utils.mkvc(D2) == Utils.mkvc(self.D)))
 
     def test_contains(self):
         F = self.F
@@ -55,10 +37,10 @@ class DataAndFieldsTest(unittest.TestCase):
         self.assertTrue('b' not in F)
         self.assertTrue('e' in F)
 
-    def test_uniqueSrcs(self):
-        srcs = self.D.survey.srcList
-        srcs += [srcs[0]]
-        self.assertRaises(AssertionError, Survey.BaseSurvey, srcList=srcs)
+    def test_overlappingFields(self):
+        self.assertRaises(AssertionError, Problem.Fields, self.F.mesh, self.F.survey,
+                            knownFields={'b':'F'},
+                            aliasFields={'b':['b',(lambda F, b, ind: b)]})
 
     def test_SetGet(self):
         F = self.F
@@ -80,9 +62,9 @@ class DataAndFieldsTest(unittest.TestCase):
 
         b = np.random.rand(F.mesh.nF,1)
         F[self.Src0, 'b'] = b
-        self.assertTrue(np.all(F[self.Src0, 'b'] == Utils.mkvc(b)))
+        self.assertTrue(np.all(F[self.Src0, 'b'] == b))
 
-        b = np.random.rand(F.mesh.nF)
+        b = np.random.rand(F.mesh.nF,1)
         F[self.Src0, 'b'] = b
         self.assertTrue(np.all(F[self.Src0, 'b'] == b))
 
@@ -96,10 +78,10 @@ class DataAndFieldsTest(unittest.TestCase):
 
         b = np.random.rand(F.mesh.nF, 2)
         F[[self.Src0, self.Src1],'b'] = b
-        self.assertTrue(F[self.Src0]['b'].shape == (F.mesh.nF,))
-        self.assertTrue(F[self.Src0,'b'].shape == (F.mesh.nF,))
-        self.assertTrue(np.all(F[self.Src0,'b'] == b[:,0]))
-        self.assertTrue(np.all(F[self.Src1,'b'] == b[:,1]))
+        self.assertTrue(F[self.Src0]['b'].shape == (F.mesh.nF,1))
+        self.assertTrue(F[self.Src0,'b'].shape == (F.mesh.nF,1))
+        self.assertTrue(np.all(F[self.Src0,'b'] == Utils.mkvc(b[:,0],2)))
+        self.assertTrue(np.all(F[self.Src1,'b'] == Utils.mkvc(b[:,1],2)))
 
     def test_assertions(self):
         freq = [self.Src0, self.Src1]
@@ -122,17 +104,16 @@ class FieldsTest_Alias(unittest.TestCase):
         XYZ = Utils.ndgrid(x,x,np.r_[0.])
         srcLoc = np.r_[0,0,0.]
         rxList0 = Survey.BaseRx(XYZ, 'exi')
-        Src0 = Survey.BaseSrc(srcLoc, 'VMD', [rxList0])
+        Src0 = Survey.BaseSrc([rxList0],loc=srcLoc)
         rxList1 = Survey.BaseRx(XYZ, 'bxi')
-        Src1 = Survey.BaseSrc(srcLoc, 'VMD', [rxList1])
+        Src1 = Survey.BaseSrc([rxList1],loc=srcLoc)
         rxList2 = Survey.BaseRx(XYZ, 'bxi')
-        Src2 = Survey.BaseSrc(srcLoc, 'VMD', [rxList2])
+        Src2 = Survey.BaseSrc([rxList2],loc=srcLoc)
         rxList3 = Survey.BaseRx(XYZ, 'bxi')
-        Src3 = Survey.BaseSrc(srcLoc, 'VMD', [rxList3])
-        Src4 = Survey.BaseSrc(srcLoc, 'VMD', [rxList0, rxList1, rxList2, rxList3])
+        Src3 = Survey.BaseSrc([rxList3],loc=srcLoc)
+        Src4 = Survey.BaseSrc([rxList0, rxList1, rxList2, rxList3],loc=srcLoc)
         srcList = [Src0,Src1,Src2,Src3,Src4]
         survey = Survey.BaseSurvey(srcList=srcList)
-        self.D = Survey.Data(survey)
         self.F = Problem.Fields(mesh, survey, knownFields={'e':'E'}, aliasFields={'b':['e','F',(lambda e, ind: self.F.mesh.edgeCurl * e)]})
         self.Src0 = Src0
         self.Src1 = Src1
@@ -158,7 +139,7 @@ class FieldsTest_Alias(unittest.TestCase):
 
         e = np.random.rand(F.mesh.nE,1)
         F[self.Src0, 'e'] = e
-        self.assertTrue(np.all(F[self.Src0, 'b'] == F.mesh.edgeCurl * Utils.mkvc(e)))
+        self.assertTrue(np.all(F[self.Src0, 'b'] == F.mesh.edgeCurl * e))
 
         def f():
             F[self.Src0, 'b'] = F[self.Src0, 'b']
@@ -166,7 +147,7 @@ class FieldsTest_Alias(unittest.TestCase):
 
     def test_aliasFunction(self):
         def alias(e, ind):
-            self.assertTrue(ind is self.Src0)
+            self.assertTrue(ind[0] is self.Src0)
             return self.F.mesh.edgeCurl * e
         F = Problem.Fields(self.F.mesh, self.F.survey, knownFields={'e':'E'}, aliasFields={'b':['e','F',alias]})
         e = np.random.rand(F.mesh.nE,1)
@@ -193,14 +174,14 @@ class FieldsTest_Time(unittest.TestCase):
         XYZ = Utils.ndgrid(x,x,np.r_[0.])
         srcLoc = np.r_[0,0,0.]
         rxList0 = Survey.BaseRx(XYZ, 'exi')
-        Src0 = Survey.BaseSrc(srcLoc, 'VMD', [rxList0])
+        Src0 = Survey.BaseSrc([rxList0], loc=srcLoc)
         rxList1 = Survey.BaseRx(XYZ, 'bxi')
-        Src1 = Survey.BaseSrc(srcLoc, 'VMD', [rxList1])
+        Src1 = Survey.BaseSrc([rxList1], loc=srcLoc)
         rxList2 = Survey.BaseRx(XYZ, 'bxi')
-        Src2 = Survey.BaseSrc(srcLoc, 'VMD', [rxList2])
+        Src2 = Survey.BaseSrc([rxList2], loc=srcLoc)
         rxList3 = Survey.BaseRx(XYZ, 'bxi')
-        Src3 = Survey.BaseSrc(srcLoc, 'VMD', [rxList3])
-        Src4 = Survey.BaseSrc(srcLoc, 'VMD', [rxList0, rxList1, rxList2, rxList3])
+        Src3 = Survey.BaseSrc([rxList3], loc=srcLoc)
+        Src4 = Survey.BaseSrc([rxList0, rxList1, rxList2, rxList3], loc=srcLoc)
         srcList = [Src0,Src1,Src2,Src3,Src4]
         survey = Survey.BaseSurvey(srcList=srcList)
         prob = Problem.BaseTimeProblem(mesh, timeSteps=[(10.,3), (20.,2)])
@@ -249,7 +230,7 @@ class FieldsTest_Time(unittest.TestCase):
 
         b = np.random.rand(F.mesh.nF,1,nT)
         F[self.Src0, 'b', 0] = b[:,:,0]
-        self.assertTrue(np.all(F[self.Src0, 'b', 0] == b[:,0,0]))
+        self.assertTrue(np.all(F[self.Src0, 'b', 0] == Utils.mkvc(b[:,0,0],2)))
 
         phi = np.random.rand(F.mesh.nC,2,nT)
         F[[self.Src0,self.Src1], 'phi'] = phi
@@ -265,10 +246,10 @@ class FieldsTest_Time(unittest.TestCase):
         self.assertTrue(F[self.Src0,'b'].shape == (F.mesh.nF,nT))
         self.assertTrue(np.all(F[self.Src0,'b'] == b[:,0,:]))
         self.assertTrue(np.all(F[self.Src1,'b'] == b[:,1,:]))
-        self.assertTrue(np.all(F[self.Src0,'b',1] == b[:,0,1]))
-        self.assertTrue(np.all(F[self.Src1,'b',1] == b[:,1,1]))
-        self.assertTrue(np.all(F[self.Src0,'b',4] == b[:,0,4]))
-        self.assertTrue(np.all(F[self.Src1,'b',4] == b[:,1,4]))
+        self.assertTrue(np.all(F[self.Src0,'b',1] == Utils.mkvc(b[:,0,1],2)))
+        self.assertTrue(np.all(F[self.Src1,'b',1] == Utils.mkvc(b[:,1,1],2)))
+        self.assertTrue(np.all(F[self.Src0,'b',4] == Utils.mkvc(b[:,0,4],2)))
+        self.assertTrue(np.all(F[self.Src1,'b',4] == Utils.mkvc(b[:,1,4],2)))
 
 
         b = np.random.rand(F.mesh.nF, 2, nT)
@@ -295,14 +276,14 @@ class FieldsTest_Time_Aliased(unittest.TestCase):
         XYZ = Utils.ndgrid(x,x,np.r_[0.])
         srcLoc = np.r_[0,0,0.]
         rxList0 = Survey.BaseRx(XYZ, 'exi')
-        Src0 = Survey.BaseSrc(srcLoc, 'VMD', [rxList0])
+        Src0 = Survey.BaseSrc( [rxList0],loc=srcLoc)
         rxList1 = Survey.BaseRx(XYZ, 'bxi')
-        Src1 = Survey.BaseSrc(srcLoc, 'VMD', [rxList1])
+        Src1 = Survey.BaseSrc( [rxList1],loc=srcLoc)
         rxList2 = Survey.BaseRx(XYZ, 'bxi')
-        Src2 = Survey.BaseSrc(srcLoc, 'VMD', [rxList2])
+        Src2 = Survey.BaseSrc( [rxList2],loc=srcLoc)
         rxList3 = Survey.BaseRx(XYZ, 'bxi')
-        Src3 = Survey.BaseSrc(srcLoc, 'VMD', [rxList3])
-        Src4 = Survey.BaseSrc(srcLoc, 'VMD', [rxList0, rxList1, rxList2, rxList3])
+        Src3 = Survey.BaseSrc( [rxList3],loc=srcLoc)
+        Src4 = Survey.BaseSrc( [rxList0, rxList1, rxList2, rxList3],loc=srcLoc)
         srcList = [Src0,Src1,Src2,Src3,Src4]
         survey = Survey.BaseSurvey(srcList=srcList)
         prob = Problem.BaseTimeProblem(mesh, timeSteps=[(10.,3), (20.,2)])
@@ -344,7 +325,7 @@ class FieldsTest_Time_Aliased(unittest.TestCase):
         self.assertTrue(np.all(F[self.Src0, 'e', :] == e[:,0,:] ))
         self.assertTrue(np.all(F[self.Src1, 'e', :] == e[:,1,:] ))
         for t in range(nT):
-            self.assertTrue(np.all(F[self.Src1, 'e', t] == e[:,1,t] ))
+            self.assertTrue(np.all(F[self.Src1, 'e', t] == Utils.mkvc(e[:,1,t],2) ))
 
         b = np.random.rand(F.mesh.nF,nT)
         F[self.Src0, 'b',:] = b
@@ -362,7 +343,7 @@ class FieldsTest_Time_Aliased(unittest.TestCase):
         count = [0]
         def alias(e, srcInd, timeInd):
             count[0] += 1
-            self.assertTrue(srcInd is self.Src0)
+            self.assertTrue(srcInd[0] is self.Src0)
             return self.F.mesh.edgeCurl * e
         F = Problem.TimeFields(self.F.mesh, self.F.survey, knownFields={'e':'E'}, aliasFields={'b':['e','F',alias]})
         e = np.random.rand(F.mesh.nE,1,nT)

@@ -1,4 +1,4 @@
-import Utils, numpy as np, scipy.sparse as sp
+import Utils, numpy as np, scipy.sparse as sp, uuid
 
 
 class BaseRx(object):
@@ -13,6 +13,7 @@ class BaseRx(object):
     storeProjections = True #: Store calls to getP (organized by mesh)
 
     def __init__(self, locs, rxType, **kwargs):
+        self.uid = str(uuid.uuid4())
         self.locs = locs
         self.rxType = rxType
         self._Ps = {}
@@ -119,14 +120,12 @@ class BaseSrc(object):
     rxList = None #: SimPEG Receiver List
     rxPair = BaseRx
 
-    def __init__(self, loc, srcType, rxList, **kwargs):
+    def __init__(self, rxList, **kwargs):
         assert type(rxList) is list, 'rxList must be a list'
         for rx in rxList:
             assert isinstance(rx, self.rxPair), 'rxList must be a %s'%self.rxPair.__name__
         assert len(set(rxList)) == len(rxList), 'The rxList must be unique'
-
-        self.loc    = loc
-        self.srcType = srcType
+        self.uid = str(uuid.uuid4())
         self.rxList = rxList
         Utils.setKwargs(self, **kwargs)
 
@@ -146,6 +145,7 @@ class Data(object):
     """Fancy data storage by Src and Rx"""
 
     def __init__(self, survey, v=None):
+        self.uid = str(uuid.uuid4())
         self.survey = survey
         self._dataDict = {}
         for src in self.survey.srcList:
@@ -227,6 +227,19 @@ class BaseSurvey(object):
         assert np.all([isinstance(src, self.srcPair) for src in value]), 'All sources must be instances of %s' % self.srcPair.__name__
         assert len(set(value)) == len(value), 'The srcList must be unique'
         self._srcList = value
+        self._sourceOrder = dict()
+        [self._sourceOrder.setdefault(src.uid, ii) for ii, src in enumerate(self._srcList)]
+
+    def getSourceIndex(self, sources):
+        if type(sources) is not list:
+            sources = [sources]
+        for src in sources:
+            if getattr(src,'uid',None) is None:
+                raise KeyError('Source does not have a uid: %s'%str(src))
+        inds = map(lambda src: self._sourceOrder.get(src.uid, None), sources)
+        if None in inds:
+            raise KeyError('Some of the sources specified are not in this survey. %s'%str(inds))
+        return inds
 
     @property
     def prob(self):
@@ -360,3 +373,4 @@ class BaseSurvey(object):
         noise = std*abs(self.dtrue)*np.random.randn(*self.dtrue.shape)
         self.dobs = self.dtrue+noise
         self.std = self.dobs*0 + std
+        return self.dobs

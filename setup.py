@@ -33,7 +33,7 @@ with open("README.rst") as f:
 
 setup(
     name = "SimPEG",
-    version = "0.1.1",
+    version = "0.1.3",
     packages = find_packages(),
     install_requires = ['numpy>=1.7',
                         'scipy>=0.13'
@@ -44,7 +44,7 @@ setup(
     long_description = LONG_DESCRIPTION,
     license = "MIT",
     keywords = "geophysics inverse problem",
-    url = "http://simpeg.3ptscience.com/",
+    url = "http://simpeg.xyz/",
     download_url = "http://github.com/simpeg/simpeg",
     classifiers=CLASSIFIERS,
     platforms = ["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],

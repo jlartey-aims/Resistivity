@@ -328,6 +328,7 @@ class TensorView(object):
             v = getattr(np,view)(v) # e.g. np.real(v)
             if clim is None:
                 clim = [v.min(),v.max()]
+            v = np.ma.masked_where(np.isnan(v), v)
             out += (ax.pcolormesh(self.vectorNx, self.vectorNy, v.T, vmin=clim[0], vmax=clim[1], **pcolorOpts),)
         elif view in ['vec']:
             U, V = self.r(v.reshape((self.nC,-1), order='F'), 'CC', 'CC', 'M')
@@ -576,11 +577,11 @@ class CylView(object):
     def plotImage(self, *args, **kwargs):
         return self._plotCylTensorMesh('plotImage', *args, **kwargs)
 
-class LomView(object):
+class CurvView(object):
     """
-    Provides viewing functions for LogicallyOrthogonalMesh
+    Provides viewing functions for CurvilinearMesh
 
-    This class is inherited by LogicallyOrthogonalMesh
+    This class is inherited by CurvilinearMesh
 
     """
     def __init__(self):
@@ -594,8 +595,8 @@ class LomView(object):
             :include-source:
 
             from SimPEG import Mesh, Utils
-            X, Y = Utils.exampleLomGird([3,3],'rotate')
-            M = Mesh.LogicallyOrthogonalMesh([X, Y])
+            X, Y = Utils.exampleCurvGird([3,3],'rotate')
+            M = Mesh.CurvilinearMesh([X, Y])
             M.plotGrid(showIt=True)
 
         """
