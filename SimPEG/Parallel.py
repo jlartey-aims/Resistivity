@@ -38,27 +38,54 @@ class Endpoint(object):
     footprint on the remote workers.
     '''
 
-    systemFactory = lambda: None    # Callable for constructing system / problem
+    problemFactory = lambda: None   # Callable for constructing system / problem
+    surveyFactory = lambda: None    # Callable for constructing survey
     localFields = {}                # Dictionary for storing local fields
     globalFields = {}               # Dictionary for storing merged fields
-    localSystems = {}               # Dictionary of local subsystem / problem objects
+    localProblems = {}              # Dictionary of local subsystem / problem objects
+    localSurveys = {}               # Dictionary of local survey objects
     functions = {}                  # Dictionary of callables to carry out modelling / etc.
     fieldspec = None                # Dictionary of callables to setup field storage objects
     baseSystemConfig = {}           # Base configuration for system
 
     def setupLocalFields(self, whichfields=None):
 
+        # If no names are specified, clear all fields first
         if whichfields is None:
             self.localFields = {}
+
+        # If we have a 'fieldspec' object...
         if getattr(self, 'fieldspec', None) is not None:
+            # ...either loop over the specified names, or all the fields...
             for fn in (whichfields or self.fieldspec):
+                # ...and construct a new empty object per the 'fieldspec' constructor.
                 self.localFields[fn] = self.fieldspec[fn]()
 
-    def setupLocalSystem(self, subConfig):
+    def setupLocalSurveys(self, subConfigs):
 
-        systemConfig = self.baseSystemConfig.copy()
+        # Loop over possible survey configurations (may differ in source terms, etc.)
+        for isub in subConfigs:
+            # For each 'isub' create a separate copy of the base configuration...
+            geom = self.baseSystemConfig['geom'].copy()
+            # ...and update with any differences...
+            geom.update(subConfigs[isub])
+            # ...then construct the Survey object and store it for later pairing.
+            self.localSurveys[isub] = self.surveyFactory(geom)
+
+    def setupLocalProblem(self, subConfig):
+
+        # Make a copy w/o the geometry information (which is used by Survey)
+        systemConfig = {key: self.baseSystemConfig[key] for key in self.baseSystemConfig if key not in ['geom']}
+
+        # Update with the configuration for this subproblem
         systemConfig.update(subConfig)
-        self.localSystems[subConfig['tag']] = self.systemFactory(systemConfig)
+
+        # Create the local subproblem...
+        problem = self.problemFactory(systemConfig)
+        # ...and pair it with a corresponding survey for this 'isub' (e.g., frequency)...
+        problem.pair(self.localSurveys[subConfig['isub']])
+        # ...then store in the Endpoint for later access by the scheduler.
+        self.localProblems[subConfig['tag']] = problem
 
 
 class SystemGraph(networkx.DiGraph):
