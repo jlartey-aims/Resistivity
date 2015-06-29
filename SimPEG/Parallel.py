@@ -185,7 +185,7 @@ class SystemSolver(object):
                 isrcslist = [isrcs]
 
         # TODO: Replace w/ hook into Endpoint classes
-        systemsOnWorkers = dview['%s.localSystems.keys()'%self.endpointName]
+        systemsOnWorkers = dview['%s.localProblems.keys()'%self.endpointName]
         ids = dview['rank']
         tags = set()
         for ltags in systemsOnWorkers:
