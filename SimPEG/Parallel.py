@@ -200,7 +200,7 @@ class SystemSolver(object):
                 rank = ids[i]
 
                 if tag in systems:
-                    relIDs.append(i)
+                    relIDs.append(rank)
 
             systemJobs = []
             endNodes[tag] = []
@@ -214,7 +214,7 @@ class SystemSolver(object):
                         systemJobs.append(job)
                         label = 'Compute: %d, %d, %d'%(tag[0], tag[1], iworks)
                         systemNodes.append(label)
-                        G.add_node(label, jobs=[job])
+                        G.add_node(label, jobs=[job], subslice=work, tag=tag)
                         G.add_edge(tagNode, label)
                         iworks += 1
 
@@ -223,9 +223,7 @@ class SystemSolver(object):
                 for label in systemNodes:
                     G.add_edge(label, tagNode)
 
-                for i in relIDs:
-
-                    rank = ids[i]
+                for rank in relIDs:
 
                     with lview.temp_flags(block=False, after=systemJobs):
                         # TODO: Remove dependency on self._hasSystemRank, once the SuperReferences
@@ -233,14 +231,14 @@ class SystemSolver(object):
                         #       correct (allowed) systems.
                         job = lview.apply(clearRef, Reference(self.remote.endpointName), tag, rank)
                         clearJobs.append(job)
-                        label = 'Wrap: %d, %d, %d'%(tag[0],tag[1], i)
-                        G.add_node(label, jobs=[job])
+                        label = 'Wrap: %d, %d, %d'%(tag[0],tag[1], rank)
+                        G.add_node(label, jobs=[job], tag=tag, rank=rank)
                         endNodes[tag].append(label)
                         G.add_edge(tagNode, label)
             else:
 
                 for i, sjob in enumerate(systemJobs):
-                    with lview.temp_flags(block=False, follow=sjob):
+                    with lview.temp_flags(block=False, follow=sjob, after=sjob):
                         job = lview.apply(clearRef, Reference(self.remote.endpointName), tag)
                         clearJobs.append(job)
                         label = 'Wrap: %d, %d, %d'%(tag[0],tag[1],i)
