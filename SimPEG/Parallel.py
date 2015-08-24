@@ -1,4 +1,4 @@
-from IPython.parallel import Client, parallel, Reference, require, depend, interactive
+from ipyparallel import Client, parallel, Reference, require, depend, interactive
 from SimPEG.Utils import CommonReducer
 import numpy as np
 import networkx
@@ -24,8 +24,8 @@ class SuperReference(object):
 
     def __call__(self, *args, **kwargs):
 
-        from IPython.parallel import depend
-        from IPython.parallel.error import UnmetDependency
+        from ipyparallel import depend
+        from ipyparallel.error import UnmetDependency
 
         if (self.rank is not None) and (globals().get('rank', None) not in self.rank):
             raise UnmetDependency('Global \'rank\' does not satisfy requirements')
@@ -592,7 +592,7 @@ class RemoteInterface(object):
     @interactive
     def _reduceJob(worker, root, endpoint, key):
 
-        from IPython.parallel.error import UnmetDependency
+        from ipyparallel.error import UnmetDependency
         if not rank == worker:
             raise UnmetDependency
 
