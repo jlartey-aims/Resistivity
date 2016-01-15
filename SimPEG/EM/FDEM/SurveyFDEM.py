@@ -106,7 +106,7 @@ class Survey(SimPEG.Survey.BaseSurvey):
         SimPEG.Survey.BaseSurvey.__init__(self, **kwargs)
 
         _freqDict = {}
-        for src in srcList:
+        for src in self.srcList:
             if src.freq not in _freqDict:
                 _freqDict[src.freq] = []
             _freqDict[src.freq] += [src]

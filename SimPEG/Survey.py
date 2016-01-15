@@ -223,6 +223,8 @@ class BaseSurvey(object):
 
     @srcList.setter
     def srcList(self, value):
+        if isinstance(value, self.srcPair):
+            value = [value]
         assert type(value) is list, 'srcList must be a list'
         assert np.all([isinstance(src, self.srcPair) for src in value]), 'All sources must be instances of %s' % self.srcPair.__name__
         assert len(set(value)) == len(value), 'The srcList must be unique'
