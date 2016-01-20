@@ -311,11 +311,13 @@ class GlobalProblem(BaseProblem):
         assert type(ind) in [int,long] and ind >= 0 and ind < self.nGroups, 'ind must be an index into the group list'
 
         subMesh = self.meshes[ind]
-        subMap  = Maps.IdentityMap(subMesh) # this is probably a mesh2mesh mapping?
+
+        subMap  = self.getSubMap(subMesh, ind)
 
         if self.PropMap is None:
             prob = self.SubProblem(subMesh, mapping=subMap * self.mapping, **self.probKwargs)
         else:
+            # This will not work with a fancier propmap...
             prob = self.SubProblem(subMesh, mapping=subMap * self._propMapMapping, **self.probKwargs)
 
         survey = self.survey.__class__(srcList=self.survey.srcList[self.groups[ind]], **self.surveyKwargs)
@@ -323,6 +325,16 @@ class GlobalProblem(BaseProblem):
 
         return prob
 
+    def getSubMap(self, subMesh, ind):
+        """The sub"""
+        mesh2mesh = Maps.IdentityMap(subMesh) # this is probably a mesh2mesh mapping?
+
+        if self.PropMap is None:
+            subMap = mesh2mesh * self.mapping
+        else:
+            subMap = mesh2mesh * self._propMapMapping
+
+        return subMap
 
 if __name__ == '__main__':
 
