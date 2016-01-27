@@ -314,7 +314,7 @@ class GlobalProblem(BaseProblem):
             raise Exceptions.PairingException(reason='The meshes are not the the same length as the number of groups')
 
     def getSubProblem(self, ind):
-
+        #This is a core place that we can proceed parallelization
         assert self.ispaired, 'You must be paired to a survey'
         assert type(ind) in [int,long] and ind >= 0 and ind < self.nGroups, 'ind must be an index into the group list'
 
