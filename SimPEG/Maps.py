@@ -4,6 +4,7 @@ from Tests import checkDerivative
 from PropMaps import PropMap, Property
 from numpy.polynomial import polynomial
 from scipy.interpolate import UnivariateSpline
+from scipy.spatial import cKDTree
 
 class IdentityMap(object):
     """
@@ -475,8 +476,7 @@ class Mesh2MeshTopo(IdentityMap):
 
         # Old version using SimPEG interpolation
         # self.P = self.mesh2.getInterpolationMat(self.mesh.gridCC,'CC',zerosOutside=True)
-    
-    from scipy.interpolate import NearestNDInterpolator        
+           
     def genActiveindfromTopo(mesh, xyztopo):    
         #TODO: This possibly needs to be improved use vtk(?)
         if mesh.dim==3:
@@ -501,7 +501,7 @@ class Mesh2MeshTopo(IdentityMap):
         """
         if self.tree==None:
             self.tree = cKDTree(zip(self.mesh.gridCC[self.actind,0], self.mesh.gridCC[self.actind,1], self.mesh.gridCC[self.actind,2]))
-        d, inds = tree.query(zip(self.mesh2.gridCC[self.actind2,0],self.mesh2.gridCC[self.actind2,1],self.mesh2.gridCC[self.actind2,2]), k=self.nIterpPts)
+        d, inds = self.tree.query(zip(self.mesh2.gridCC[self.actind2,0],self.mesh2.gridCC[self.actind2,1],self.mesh2.gridCC[self.actind2,2]), k=self.nIterpPts)
         w = 1./ d**2
         w = Utils.sdiag(1./np.sum(w, axis=1)) * w
         I = Utils.mkvc(np.arange(inds.shape[0]).reshape([-1,1]).repeat(6, axis=1))

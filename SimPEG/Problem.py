@@ -254,7 +254,7 @@ class GlobalProblem(BaseProblem):
         Utils.setKwargs(self, **kwargs)
         assert isinstance(globalMesh, Mesh.BaseMesh), "globalMesh must be a SimPEG.Mesh object."
         self.globalMesh = globalMesh
-        self.mapping = mapping or Maps.IdentityMap(mesh)
+        self.mapping = mapping or Maps.IdentityMap()
 
     @property
     def groups(self):
@@ -313,13 +313,13 @@ class GlobalProblem(BaseProblem):
         if self.nGroups is not len(self.meshes):
             raise Exceptions.PairingException(reason='The meshes are not the the same length as the number of groups')
 
-    def getSubProblem(self, ind):
+    def getSubProblemandSubSurvey(self, subMap, ind):
         #This is a core place that we can proceed parallelization
         assert self.ispaired, 'You must be paired to a survey'
         assert type(ind) in [int,long] and ind >= 0 and ind < self.nGroups, 'ind must be an index into the group list'
 
         subMesh = self.meshes[ind]
-        subMap  = Maps.IdentityMap(subMesh) # this is probably a mesh2mesh mapping?
+        # subMap  = Maps.IdentityMap(subMesh) # this is probably a mesh2mesh mapping?
 
         if self.PropMap is None:
             prob = self.SubProblem(subMesh, mapping=subMap * self.mapping, **self.probKwargs)
@@ -329,7 +329,7 @@ class GlobalProblem(BaseProblem):
         survey = self.survey.__class__(srcList=self.survey.srcList[self.groups[ind]], **self.surveyKwargs)
         prob.pair(survey)
 
-        return prob
+        return prob, survey
 
 
 if __name__ == '__main__':
