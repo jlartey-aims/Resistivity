@@ -467,6 +467,7 @@ class Mesh2MeshTopo(IdentityMap):
     """
     tree = None
     nIterpPts = 6
+    P = None #: The CSR projection matrix.
 
     def __init__(self, meshes, actinds, **kwargs):
         Utils.setKwargs(self, **kwargs)
@@ -481,12 +482,12 @@ class Mesh2MeshTopo(IdentityMap):
         self.mesh2 = meshes[1]
         self.actind = actinds[0]
         self.actind2 = actinds[1]
-        self.getP()
+        self._createProjection()
 
         # Old version using SimPEG interpolation
         # self.P = self.mesh2.getInterpolationMat(self.mesh.gridCC,'CC',zerosOutside=True)
-           
-    def genActiveindfromTopo(mesh, xyztopo):    
+
+    def genActiveindfromTopo(mesh, xyztopo):
         #TODO: This possibly needs to be improved use vtk(?)
         if mesh.dim==3:
             nCxy = mesh.nCx*mesh.nCy
@@ -495,7 +496,7 @@ class Mesh2MeshTopo(IdentityMap):
             XY = Utils.ndgrid(mesh.vectorCCx, mesh.vectorCCy)
             XY.shape
             topo = Ftopo(XY)
-            actind = []                    
+            actind = []
             for ixy in range(nCxy):
                 actind.append(topo[ixy] <= Zcc[ixy,:])
         else:
@@ -504,9 +505,9 @@ class Mesh2MeshTopo(IdentityMap):
         return Utils.mkvc(np.vstack(actind))
 
     #Question .. is it only generated once?
-    def getP(self):
+    def _createProjection(self):
         """
-
+            KD Tree interpolation onto the active cells.
         """
         if self.tree==None:
             self.tree = cKDTree(zip(self.mesh.gridCC[self.actind,0], self.mesh.gridCC[self.actind,1], self.mesh.gridCC[self.actind,2]))
