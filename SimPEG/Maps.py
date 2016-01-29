@@ -11,21 +11,25 @@ class IdentityMap(object):
     SimPEG Map
 
     """
-
     __metaclass__ = Utils.SimPEGMetaClass
 
-    mesh = None      #: A SimPEG Mesh
-
-    def __init__(self, mesh, **kwargs):
+    def __init__(self, mesh=None, nP=None, **kwargs):
         Utils.setKwargs(self, **kwargs)
+
+        if nP is not None:
+            assert type(nP) in [int, long], ' Number of parameters must be an integer.'
+
         self.mesh = mesh
+        self._nP  = nP
 
     @property
     def nP(self):
         """
             :rtype: int
-            :return: number of parameters in the model
+            :return: number of parameters that the mapping accepts
         """
+        if self._nP is not None:
+            return self._nP
         if self.mesh is None:
             return '*'
         return self.mesh.nC
@@ -33,11 +37,15 @@ class IdentityMap(object):
     @property
     def shape(self):
         """
-            The default shape is (mesh.nC, nP).
+            The default shape is (mesh.nC, nP) if the mesh is defined.
+            If this is a meshless mapping (i.e. nP is defined independently)
+            the shape will be the the shape (nP,nP).
 
             :rtype: (int,int)
             :return: shape of the operator as a tuple
         """
+        if self._nP is not None:
+            return (self.nP, self.nP)
         if self.mesh is None:
             return ('*', self.nP)
         return (self.mesh.nC, self.nP)
@@ -118,6 +126,7 @@ class IdentityMap(object):
 
     def __str__(self):
         return "%s(%s,%s)" % (self.__class__.__name__, self.shape[0], self.shape[1])
+
 
 class ComboMap(IdentityMap):
     """Combination of various maps."""
