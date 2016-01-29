@@ -521,7 +521,7 @@ class Mesh2MeshTopo(IdentityMap):
         J = Utils.mkvc(inds)
         P = sp.coo_matrix( (Utils.mkvc(w),(I, J)), shape=(inds.shape[0], (self.actind).sum()) )
         # self.P = Utils.sdiag(self.mesh2.vol[self.actind2])*P.tocsc()
-        self.P = P.tocsc()
+        self.P = P.tocsr()
 
     @property
     def shape(self):
