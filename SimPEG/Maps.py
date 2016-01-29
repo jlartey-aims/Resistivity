@@ -502,12 +502,17 @@ class Mesh2MeshTopo(IdentityMap):
         if self.tree==None:
             self.tree = cKDTree(zip(self.mesh.gridCC[self.actind,0], self.mesh.gridCC[self.actind,1], self.mesh.gridCC[self.actind,2]))
         d, inds = self.tree.query(zip(self.mesh2.gridCC[self.actind2,0],self.mesh2.gridCC[self.actind2,1],self.mesh2.gridCC[self.actind2,2]), k=self.nIterpPts)
-        w = 1./ d**2
-        w = Utils.sdiag(1./np.sum(w, axis=1)) * w
-        I = Utils.mkvc(np.arange(inds.shape[0]).reshape([-1,1]).repeat(6, axis=1))
+        # Not sure consideration of the volume ...
+        # vol = np.zeros((self.actind2.sum(), self.nIterpPts))
+        # for i in range(self.nIterpPts):
+        #     vol[:,i] = self.mesh.vol[inds[:,i]]
+        w = 1. / d**2
+        w = Utils.sdiag(1./np.sum(w, axis=1)) * (w)
+        I = Utils.mkvc(np.arange(inds.shape[0]).reshape([-1,1]).repeat(self.nIterpPts, axis=1))
         J = Utils.mkvc(inds)
         P = sp.coo_matrix( (Utils.mkvc(w),(I, J)), shape=(inds.shape[0], (self.actind).sum()) )
-        self.P = P.tocsc() 
+        # self.P = Utils.sdiag(self.mesh2.vol[self.actind2])*P.tocsc()
+        self.P = P.tocsc()
 
     @property
     def shape(self):
