@@ -335,16 +335,16 @@ class GlobalProblem(BaseProblem):
 
     # Not sure we need this here ... 
 
-    # def getSubMap(self, subMesh, ind):
-    #     """The sub"""
-    #     mesh2mesh = Maps.IdentityMap(subMesh) # this is probably a mesh2mesh mapping?
+    def getSubMap(self, subMesh, ind):
+        """The sub"""
+        mesh2mesh = Maps.IdentityMap(subMesh) # this is probably a mesh2mesh mapping?
 
-    #     if self.PropMap is None:
-    #         subMap = mesh2mesh * self.mapping
-    #     else:
-    #         subMap = mesh2mesh * self._propMapMapping
+        if self.PropMap is None:
+            subMap = mesh2mesh * self.mapping
+        else:
+            subMap = mesh2mesh * self._propMapMapping
 
-    #     return subMap
+        return subMap
 
 if __name__ == '__main__':
 
