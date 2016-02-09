@@ -26,6 +26,13 @@ class Rx(SimPEG.Survey.BaseRx):
                     'byi':['b', 'Fy', 'imag'],
                     'bzi':['b', 'Fz', 'imag'],
 
+                    'bxr_sec':['bSecondary', 'Fx', 'real'],
+                    'byr_sec':['bSecondary', 'Fy', 'real'],
+                    'bzr_sec':['bSecondary', 'Fz', 'real'],
+                    'bxi_sec':['bSecondary', 'Fx', 'imag'],
+                    'byi_sec':['bSecondary', 'Fy', 'imag'],
+                    'bzi_sec':['bSecondary', 'Fz', 'imag'],
+
                     'jxr':['j', 'Fx', 'real'],
                     'jyr':['j', 'Fy', 'real'],
                     'jzr':['j', 'Fz', 'real'],
