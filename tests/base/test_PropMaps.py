@@ -1,6 +1,7 @@
 import unittest
 from SimPEG import *
 from scipy.constants import mu_0
+import cPickle
 
 
 class MyPropMap(Maps.PropMap):
@@ -28,9 +29,10 @@ class TestPropMaps(unittest.TestCase):
         PM3 = MyPropMap({'maps':[('sigma', expMap)], 'slices':{'sigma':slice(0,3)}})
 
         for PM in [PM1,PM2,PM3]:
+            PM = cPickle.loads( cPickle.dumps(PM) )
             assert PM.defaultInvProp == 'sigma'
             assert PM.sigmaMap is not None
-            assert PM.sigmaMap is expMap
+            assert PM.sigmaMap.__class__ is expMap.__class__
             assert PM.sigmaIndex == slice(0,3)
             assert getattr(PM, 'sigma', None) is None
             assert PM.muMap is None
@@ -52,7 +54,7 @@ class TestPropMaps(unittest.TestCase):
             assert m.muDeriv is None
 
             assert np.all(m.sigmaModel == np.r_[1.,2,3])
-            assert m.sigmaMap is expMap
+            assert m.sigmaMap.__class__ is expMap.__class__
             assert np.all(m.sigma == np.exp(np.r_[1.,2,3]))
             assert m.sigmaDeriv is not None
 

@@ -65,8 +65,8 @@ def setKwargs(obj, ignore=[],  **kwargs):
         else:
             raise Exception('%s attr is not recognized' % attr)
 
-    hook(obj,hook, silent=True)
-    hook(obj,setKwargs, silent=True)
+    # hook(obj,hook, silent=True)
+    # hook(obj,setKwargs, silent=True)
 
 def printTitles(obj, printers, name='Print Titles', pad=''):
     titles = ''
