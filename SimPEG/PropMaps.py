@@ -12,6 +12,7 @@ class Property(object):
         # Set the default after all other params are set
         self.doc = doc
         Utils.setKwargs(self, **kwargs)
+        self._kwargs = kwargs
 
     @property
     def propertyLink(self):
@@ -109,6 +110,13 @@ class Property(object):
         def fget(self):
             return getattr(self.propMap, '_%sMap'%prop.name, None)
         return property(fget=fget)
+
+    def toJSON(self):
+        out = dict(doc=self.doc)
+        for k in self._kwargs:
+            out[k] = self._kwargs[k]
+        return out
+
 
 class PropModel(object):
     def __init__(self, propMap, vector):
