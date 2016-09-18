@@ -3,6 +3,7 @@ import numpy as np
 import scipy.ndimage as ndi
 import scipy.sparse as sp
 from .matutils import mkvc
+from scipy.spatial import Delaunay
 
 import sys
 if sys.version_info < (3,):
@@ -330,6 +331,18 @@ def randomModel(shape, seed=None, anisotropy=None, its=100, bounds=None):
     mi = mi*(bounds[1]-bounds[0])+bounds[0]
 
     return mi
+
+
+def PolygonInd(mesh, pts):
+    """
+
+        :param SimPEG Mesh class mesh:
+        :param numpy array pts: xyz points of the polygon or polyhedra
+    """
+
+    hull = Delaunay(pts)
+    inds = hull.find_simplex(mesh.gridCC) >= 0
+    return inds
 
 
 

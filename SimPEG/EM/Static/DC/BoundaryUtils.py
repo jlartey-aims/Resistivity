@@ -62,9 +62,6 @@ def getxBCyBC_CC(mesh, alpha, beta, gamma):
         alpha_ym, beta_ym, gamma_ym = alpha[2], beta[2], gamma[2]
         alpha_yp, beta_yp, gamma_yp = alpha[3], beta[3], gamma[3]
 
-        # h_xm, h_xp = mesh.gridCC[fCCxm,0], mesh.gridCC[fCCxp,0]
-        # h_ym, h_yp = mesh.gridCC[fCCym,1], mesh.gridCC[fCCyp,1]
-
         h_xm = mesh.hx[0]*np.ones_like(alpha_xm)
         h_xp = mesh.hx[-1]*np.ones_like(alpha_xp)
         h_ym = mesh.hy[0]*np.ones_like(alpha_ym)
@@ -174,3 +171,5 @@ def getxBCyBC_CC(mesh, alpha, beta, gamma):
         yBC = np.r_[yBC_x, yBC_y, yBC_z]
 
     return xBC, yBC
+
+
