@@ -192,7 +192,7 @@ def convert3Dto1Dobject(MTdata,rxType3D='zyx'):
         dat1DList = []
         src1DList = []
         for freq in locrecData['freq']:
-            src1DList.append(MT.SrcMT.src_polxy_1Dprimary(rx1DList,freq))
+            src1DList.append(MT.SrcMT.polxy_1Dprimary(rx1DList,freq))
             for comp  in ['r','i']:
                 dat1DList.append( corr * locrecData[rxType3D+comp][locrecData['freq']== freq].data )
 
