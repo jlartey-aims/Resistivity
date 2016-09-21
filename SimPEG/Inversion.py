@@ -1,7 +1,7 @@
-import SimPEG
+from __future__ import print_function
 from SimPEG import Utils, sp, np
-from Optimization import Remember, IterationPrinters, StoppingCriteria
-import Directives
+from .Optimization import Remember, IterationPrinters, StoppingCriteria
+from . import Directives
 
 
 class BaseInversion(object):
@@ -10,8 +10,6 @@ class BaseInversion(object):
         Inversion Class.
 
     """
-
-    __metaclass__ = Utils.SimPEGMetaClass
 
     name = 'BaseInversion'
 
@@ -33,7 +31,9 @@ class BaseInversion(object):
         self._directiveList = value
         self._directiveList.inversion = self
 
-    def __init__(self, invProb, directiveList=[], **kwargs):
+    def __init__(self, invProb, directiveList=None, **kwargs):
+        if directiveList is None:
+            directiveList = []
         self.directiveList = directiveList
         Utils.setKwargs(self, **kwargs)
 

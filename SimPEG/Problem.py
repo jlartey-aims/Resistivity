@@ -1,14 +1,20 @@
-import Utils, Survey, Models, numpy as np, scipy.sparse as sp
+from __future__ import print_function
+from . import Utils
+from . import Survey
+from . import Models
+import numpy as np
+from . import Maps
+from .Fields import Fields, TimeFields
+from . import Mesh
+
+
 Solver = Utils.SolverUtils.Solver
-import Maps, Mesh
-from Fields import Fields, TimeFields
+
 
 class BaseProblem(object):
     """
         Problem is the base class for all geophysical forward problems in SimPEG.
     """
-
-    __metaclass__ = Utils.SimPEGMetaClass
 
     counter = None   #: A SimPEG.Utils.Counter object
 
@@ -49,7 +55,7 @@ class BaseProblem(object):
 
     def pair(self, d):
         """Bind a survey to this problem instance using pointers."""
-        assert isinstance(d, self.surveyPair), "Data object must be an instance of a %s class."%(self.surveyPair.__name__)
+        assert isinstance(d, self.surveyPair), "Data object must be an instance of a {0!s} class.".format((self.surveyPair.__name__))
         if d.ispaired:
             raise Exception("The survey object is already paired to a problem. Use survey.unpair()")
         self._survey = d
@@ -88,28 +94,28 @@ class BaseProblem(object):
         return self.survey is not None
 
     @Utils.timeIt
-    def Jvec(self, m, v, u=None):
-        """Jvec(m, v, u=None)
+    def Jvec(self, m, v, f=None):
+        """Jvec(m, v, f=None)
 
             Effect of J(m) on a vector v.
 
             :param numpy.array m: model
             :param numpy.array v: vector to multiply
-            :param numpy.array u: fields
+            :param Fields f: fields
             :rtype: numpy.array
             :return: Jv
         """
         raise NotImplementedError('J is not yet implemented.')
 
     @Utils.timeIt
-    def Jtvec(self, m, v, u=None):
-        """Jtvec(m, v, u=None)
+    def Jtvec(self, m, v, f=None):
+        """Jtvec(m, v, f=None)
 
             Effect of transpose of J(m) on a vector v.
 
             :param numpy.array m: model
             :param numpy.array v: vector to multiply
-            :param numpy.array u: fields
+            :param Fields f: fields
             :rtype: numpy.array
             :return: JTv
         """
@@ -117,32 +123,32 @@ class BaseProblem(object):
 
 
     @Utils.timeIt
-    def Jvec_approx(self, m, v, u=None):
-        """Jvec_approx(m, v, u=None)
+    def Jvec_approx(self, m, v, f=None):
+        """Jvec_approx(m, v, f=None)
 
             Approximate effect of J(m) on a vector v
 
             :param numpy.array m: model
             :param numpy.array v: vector to multiply
-            :param numpy.array u: fields
+            :param Fields f: fields
             :rtype: numpy.array
             :return: approxJv
         """
-        return self.Jvec(m, v, u)
+        return self.Jvec(m, v, f)
 
     @Utils.timeIt
-    def Jtvec_approx(self, m, v, u=None):
-        """Jtvec_approx(m, v, u=None)
+    def Jtvec_approx(self, m, v, f=None):
+        """Jtvec_approx(m, v, f=None)
 
             Approximate effect of transpose of J(m) on a vector v.
 
             :param numpy.array m: model
             :param numpy.array v: vector to multiply
-            :param numpy.array u: fields
+            :param Fields f: fields
             :rtype: numpy.array
             :return: JTv
         """
-        return self.Jtvec(m, v, u)
+        return self.Jtvec(m, v, f)
 
     def fields(self, m):
         """
@@ -213,5 +219,20 @@ class BaseTimeProblem(BaseProblem):
         if hasattr(self, '_timeMesh'):
             del self._timeMesh
 
+class LinearProblem(BaseProblem):
 
+    surveyPair = Survey.LinearSurvey
+
+    def __init__(self, mesh, G, **kwargs):
+        BaseProblem.__init__(self, mesh, **kwargs)
+        self.G = G
+
+    def fields(self, m):
+        return self.G.dot(m)
+
+    def Jvec(self, m, v, f=None):
+        return self.G.dot(v)
+
+    def Jtvec(self, m, v, f=None):
+        return self.G.T.dot(v)
 

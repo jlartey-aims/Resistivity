@@ -1,4 +1,9 @@
-import Utils, numpy as np, scipy.sparse as sp, uuid
+from __future__ import print_function
+from . import Utils
+import numpy as np
+import scipy.sparse as sp
+import uuid
+import gc
 
 
 class BaseRx(object):
@@ -27,7 +32,7 @@ class BaseRx(object):
     def rxType(self, value):
         known = self.knownRxTypes
         if known is not None:
-            assert value in known, "rxType must be in ['%s']" % ("', '".join(known))
+            assert value in known, "rxType must be in ['{0!s}']".format(("', '".join(known)))
         self._rxType = value
 
     @property
@@ -35,7 +40,7 @@ class BaseRx(object):
         """Number of data in the receiver."""
         return self.locs.shape[0]
 
-    def getP(self, mesh):
+    def getP(self, mesh, projGLoc=None):
         """
             Returns the projection matrices as a
             list for all components collected by
@@ -48,7 +53,10 @@ class BaseRx(object):
         if mesh in self._Ps:
             return self._Ps[mesh]
 
-        P = mesh.getInterpolationMat(self.locs, self.projGLoc)
+        if projGLoc is None:
+            projGLoc = self.projGLoc
+
+        P = mesh.getInterpolationMat(self.locs, projGLoc)
         if self.storeProjections:
             self._Ps[mesh] = P
         return P
@@ -123,7 +131,7 @@ class BaseSrc(object):
     def __init__(self, rxList, **kwargs):
         assert type(rxList) is list, 'rxList must be a list'
         for rx in rxList:
-            assert isinstance(rx, self.rxPair), 'rxList must be a %s'%self.rxPair.__name__
+            assert isinstance(rx, self.rxPair), 'rxList must be a {0!s}'.format(self.rxPair.__name__)
         assert len(set(rxList)) == len(rxList), 'The rxList must be unique'
         self.uid = str(uuid.uuid4())
         self.rxList = rxList
@@ -202,8 +210,6 @@ class Data(object):
 class BaseSurvey(object):
     """Survey holds the observed data, and the standard deviations."""
 
-    __metaclass__ = Utils.SimPEGMetaClass
-
     std = None       #: Estimated Standard Deviations
     eps = None       #: Estimated Noise Floor
     dobs = None      #: Observed data
@@ -225,7 +231,7 @@ class BaseSurvey(object):
     @srcList.setter
     def srcList(self, value):
         assert type(value) is list, 'srcList must be a list'
-        assert np.all([isinstance(src, self.srcPair) for src in value]), 'All sources must be instances of %s' % self.srcPair.__name__
+        assert np.all([isinstance(src, self.srcPair) for src in value]), 'All sources must be instances of {0!s}'.format(self.srcPair.__name__)
         assert len(set(value)) == len(value), 'The srcList must be unique'
         self._srcList = value
         self._sourceOrder = dict()
@@ -236,10 +242,10 @@ class BaseSurvey(object):
             sources = [sources]
         for src in sources:
             if getattr(src,'uid',None) is None:
-                raise KeyError('Source does not have a uid: %s'%str(src))
-        inds = map(lambda src: self._sourceOrder.get(src.uid, None), sources)
+                raise KeyError('Source does not have a uid: {0!s}'.format(str(src)))
+        inds = list(map(lambda src: self._sourceOrder.get(src.uid, None), sources))
         if None in inds:
-            raise KeyError('Some of the sources specified are not in this survey. %s'%str(inds))
+            raise KeyError('Some of the sources specified are not in this survey. {0!s}'.format(str(inds)))
         return inds
 
     @property
@@ -261,7 +267,7 @@ class BaseSurvey(object):
     def pair(self, p):
         """Bind a problem to this survey instance using pointers"""
         assert hasattr(p, 'surveyPair'), "Problem must have an attribute 'surveyPair'."
-        assert isinstance(self, p.surveyPair), "Problem requires survey object must be an instance of a %s class."%(p.surveyPair.__name__)
+        assert isinstance(self, p.surveyPair), "Problem requires survey object must be an instance of a {0!s} class.".format((p.surveyPair.__name__))
         if p.ispaired:
             raise Exception("The problem object is already paired to a survey. Use prob.unpair()")
         self._prob = p
@@ -293,38 +299,37 @@ class BaseSurvey(object):
 
     @Utils.count
     @Utils.requires('prob')
-    def dpred(self, m, u=None):
-        """dpred(m, u=None)
+    def dpred(self, m, f=None):
+        """dpred(m, f=None)
 
             Create the projected data from a model.
-            The field, u, (if provided) will be used for the predicted data
+            The fields, f, (if provided) will be used for the predicted data
             instead of recalculating the fields (which may be expensive!).
 
             .. math::
 
-                d_\\text{pred} = P(u(m))
+                d_\\text{pred} = P(f(m))
 
             Where P is a projection of the fields onto the data space.
         """
-        if u is None: u = self.prob.fields(m)
-        return Utils.mkvc(self.projectFields(u))
-
+        if f is None: f = self.prob.fields(m)
+        return Utils.mkvc(self.eval(f))
 
     @Utils.count
-    def projectFields(self, u):
-        """projectFields(u)
+    def eval(self, f):
+        """eval(f)
 
             This function projects the fields onto the data space.
 
             .. math::
 
-                d_\\text{pred} = \mathbf{P} u(m)
+                d_\\text{pred} = \mathbf{P} f(m)
         """
-        raise NotImplemented('projectFields is not yet implemented.')
+        raise NotImplementedError('eval is not yet implemented.')
 
     @Utils.count
-    def projectFieldsDeriv(self, u):
-        """projectFieldsDeriv(u)
+    def evalDeriv(self, f):
+        """evalDeriv(f)
 
             This function s the derivative of projects the fields onto the data space.
 
@@ -332,14 +337,14 @@ class BaseSurvey(object):
 
                 \\frac{\partial d_\\text{pred}}{\partial u} = \mathbf{P}
         """
-        raise NotImplemented('projectFields is not yet implemented.')
+        raise NotImplementedError('eval is not yet implemented.')
 
     @Utils.count
-    def residual(self, m, u=None):
-        """residual(m, u=None)
+    def residual(self, m, f=None):
+        """residual(m, f=None)
 
             :param numpy.array m: geophysical model
-            :param numpy.array u: fields
+            :param numpy.array f: fields
             :rtype: numpy.array
             :return: data residual
 
@@ -350,14 +355,14 @@ class BaseSurvey(object):
                 \mu_\\text{data} = \mathbf{d}_\\text{pred} - \mathbf{d}_\\text{obs}
 
         """
-        return Utils.mkvc(self.dpred(m, u=u) - self.dobs)
+        return Utils.mkvc(self.dpred(m, f=f) - self.dobs)
 
     @property
     def isSynthetic(self):
         "Check if the data is synthetic."
         return self.mtrue is not None
 
-    def makeSyntheticData(self, m, std=0.05, u=None, force=False):
+    def makeSyntheticData(self, m, std=0.05, f=None, force=False):
         """
             Make synthetic data given a model, and a standard deviation.
 
@@ -370,8 +375,16 @@ class BaseSurvey(object):
         if getattr(self, 'dobs', None) is not None and not force:
             raise Exception('Survey already has dobs. You can use force=True to override this exception.')
         self.mtrue = m
-        self.dtrue = self.dpred(m, u=u)
+        self.dtrue = self.dpred(m, f=f)
         noise = std*abs(self.dtrue)*np.random.randn(*self.dtrue.shape)
         self.dobs = self.dtrue+noise
         self.std = self.dobs*0 + std
         return self.dobs
+
+class LinearSurvey(BaseSurvey):
+    def eval(self, f):
+        return f
+
+    @property
+    def nD(self):
+        return self.prob.G.shape[0]

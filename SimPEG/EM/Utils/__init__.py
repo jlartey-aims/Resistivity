@@ -1,5 +1,5 @@
-# import Sources
-# import Ana
-# import Solver
-from EMUtils import omega, e_from_j, j_from_e, b_from_h, h_from_b
-from AnalyticUtils import MagneticDipoleFields, MagneticDipoleVectorPotential, MagneticLoopVectorPotential
+from .EMUtils import omega, k, VTEMFun, TriangleFun, SineFun
+from .AnalyticUtils import (
+    MagneticDipoleFields, MagneticDipoleVectorPotential,
+    MagneticLoopVectorPotential, orientationDict
+    )

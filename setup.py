@@ -1,19 +1,21 @@
 #!/usr/bin/env python
+from __future__ import print_function
 """SimPEG: Simulation and Parameter Estimation in Geophysics
 
 SimPEG is a python package for simulation and gradient based
 parameter estimation in the context of geophysical applications.
 """
 
-import numpy as np
-
 import os
 import sys
 import subprocess
 
 from distutils.core import setup
+from distutils.command.build_ext import build_ext
 from setuptools import find_packages
 from distutils.extension import Extension
+
+
 
 CLASSIFIERS = [
 'Development Status :: 4 - Beta',
@@ -35,7 +37,7 @@ args = sys.argv[1:]
 
 # Make a `cleanall` rule to get rid of intermediate and library files
 if "cleanall" in args:
-    print "Deleting cython files..."
+    print("Deleting cython files...")
     # Just in case the build directory was created by accident,
     # note that shell=True should be OK here because the command is constant.
     subprocess.Popen("rm -rf build", shell=True, executable="/bin/bash")
@@ -51,11 +53,16 @@ if args.count("build_ext") > 0 and args.count("--inplace") == 0:
 try:
     from Cython.Build import cythonize
     from Cython.Distutils import build_ext
-    cythonKwargs = dict(cmdclass={'build_ext': build_ext})
     USE_CYTHON = True
-except Exception, e:
+except Exception as e:
     USE_CYTHON = False
-    cythonKwargs = dict()
+
+class NumpyBuild(build_ext):
+    def finalize_options(self):
+        build_ext.finalize_options(self)
+        __builtins__.__NUMPY_SETUP__ = False
+        import numpy
+        self.include_dirs.append(numpy.get_include())
 
 ext = '.pyx' if USE_CYTHON else '.c'
 
@@ -77,14 +84,14 @@ with open("README.rst") as f:
 
 setup(
     name = "SimPEG",
-    version = "0.1.9",
+    version = "0.2.1",
     packages = find_packages(),
     install_requires = ['numpy>=1.7',
                         'scipy>=0.13',
                         'Cython'
                        ],
     author = "Rowan Cockett",
-    author_email = "rowan@3ptscience.com",
+    author_email = "rowanc1@gmail.com",
     description = "SimPEG: Simulation and Parameter Estimation in Geophysics",
     long_description = LONG_DESCRIPTION,
     license = "MIT",
@@ -94,8 +101,8 @@ setup(
     classifiers=CLASSIFIERS,
     platforms = ["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
     use_2to3 = False,
-    include_dirs=[np.get_include()],
+    cmdclass={'build_ext':NumpyBuild},
+    setup_requires=['numpy'],
     ext_modules = extensions,
     scripts=scripts,
-    **cythonKwargs
 )

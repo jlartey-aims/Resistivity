@@ -9,41 +9,59 @@ def omega(freq):
 def k(freq, sigma, mu=mu_0, eps=epsilon_0):
     """ Eq 1.47 - 1.49 in Ward and Hohmann """
     w = omega(freq)
-    alp  = w * np.sqrt( mu*eps/2 * ( np.sqrt(1. + (sigma / (eps*w))**2 ) + 1) ) 
-    beta = w * np.sqrt( mu*eps/2 * ( np.sqrt(1. + (sigma / (eps*w))**2 ) - 1) ) 
+    alp  = w * np.sqrt( mu*eps/2 * ( np.sqrt(1. + (sigma / (eps*w))**2 ) + 1) )
+    beta = w * np.sqrt( mu*eps/2 * ( np.sqrt(1. + (sigma / (eps*w))**2 ) - 1) )
     return alp - 1j*beta
 
-# Constitutive relations
-def e_from_j(prob,j):
-    eqLocs = prob._eqLocs
-    if eqLocs is 'FE':
-        MSigmaI = prob.MeSigmaI
-    elif eqLocs is 'EF':
-        MSigmaI = prob.MfRho
-    return MSigmaI*j
+def TriangleFun(time, ta, tb):
+    """
+        Triangular Waveform
+        * time: 1D array for time
+        * ta: time at peak
+        * tb: time at step-off
+    """
+    out = np.zeros(time.size)
+    out[time<=ta] = 1/ta*time[time<=ta]
+    out[(time>ta)&(time<tb)] = -1/(tb-ta)*(time[(time>ta)&(time<tb)]-tb)
+    return out
 
-def j_from_e(prob,e):
-    eqLocs = prob._eqLocs
-    if eqLocs is 'FE':
-        MSigma = prob.MeSigma
-    elif eqLocs is 'EF':
-        MSigma = prob.MfRhoI
-    return MSigma*e
+def TriangleFunDeriv(time, ta, tb):
+    """
+        Derivative of Triangular Waveform
+    """
+    out = np.zeros(time.size)
+    out[time<=ta] = 1/ta
+    out[(time>ta)&(time<tb)] = -1/(tb-ta)
+    return out
 
-def b_from_h(prob,h):
-    eqLocs = prob._eqLocs
-    if eqLocs is 'FE':
-        MMu = prob.MfMuiI
-    elif eqLocs is 'EF':
-        MMu = prob.MeMu
-    return MMu*h
+def SineFun(time, ta):
+    """
+        Sine Waveform
+        * time: 1D array for time
+        * ta: Pulse Period
+    """
+    out = np.zeros(time.size)
+    out[time<=ta] = np.sin(1./ta*np.pi*time[time<=ta])
 
-def h_from_b(prob,b):
-    eqLocs = prob._eqLocs
-    if eqLocs is 'FE':
-        MMuI = prob.MfMui
-    elif eqLocs is 'EF':
-        MMuI = prob.MeMuI
-    return MMuI*b 
+    return out
+
+def SineFunDeriv(time, ta):
+    """
+        Derivative of Sine Waveform
+    """
+    out = np.zeros(time.size)
+    out[time<=ta] = 1./ta*np.pi*np.cos(1./ta*np.pi*time[time<=ta])
+    return out
 
 
+def VTEMFun(time, ta, tb, a):
+    """
+        VTEM Waveform
+        * time: 1D array for time
+        * ta: time at peak of exponential part
+        * tb: time at step-off
+    """
+    out = np.zeros(time.size)
+    out[time<=ta] = (1-np.exp(-a*time[time<=ta]/ta))/(1-np.exp(-a))
+    out[(time>ta)&(time<tb)] = -1/(tb-ta)*(time[(time>ta)&(time<tb)]-tb)
+    return out
