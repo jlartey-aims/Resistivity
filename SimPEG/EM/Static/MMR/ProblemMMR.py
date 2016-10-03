@@ -1,7 +1,11 @@
 from SimPEG import Problem, Utils
-from SimPEG.EM.Static.DC import BaseDCProblem
-from scipy.constants import mu_0
-
+from SimPEG.EM.Base import BaseEMProblem
+from SimPEG.EM.Static.DC.ProblemDC import BaseDCProblem 
+from SurveyMMR import Survey
+from FieldsMMR import FieldsMMR, Fields_CC
+from SimPEG.Utils import sdiag
+import numpy as np
+from SimPEG.Utils import Zero
 
 
 class BaseMMRProblem(BaseDCProblem):
@@ -9,7 +13,7 @@ class BaseMMRProblem(BaseDCProblem):
         Base DC Problem
     """
     surveyPair = Survey
-    fieldsPair = FieldsDC
+    fieldsPair = FieldsMMR
     Ainv = None
 
     def fields(self,m):
@@ -76,10 +80,10 @@ class Problem3D_CC(BaseMMRProblem):
         """
 
         CURL = self.mesh.edgeCurl
-		DIV = self.mesh.faceDiv
-		Mue = self.MeMuI
-		Muf = self.MfMui
-		V = Utils.sdiag(self.mesh.vol)
+        DIV = self.mesh.faceDiv
+        Mue = self.MeMuI
+        Muf = self.MfMui
+        V = Utils.sdiag(self.mesh.vol)
 
         #D = self.Div
         #G = self.Grad

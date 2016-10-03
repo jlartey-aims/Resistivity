@@ -100,7 +100,7 @@ class Fields_CC(FieldsMMR):
         return self.prob.mesh.edgeCurl.T*ASolution
 
 
-class Fields_N(FieldsDC):
+class Fields_N(FieldsMMR):
     knownFields = {'phiSolution': 'N'}
     aliasFields = {
                     'phi': ['phiSolution', 'N', '_phi'],
