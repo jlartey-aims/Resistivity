@@ -1,76 +1,57 @@
 from SimPEG import Problem, Utils
-from SimPEG.EM.Base import BaseEMProblem
-from SimPEG.EM.Static.DC.ProblemDC import BaseDCProblem 
+from SimPEG.EM.Static.DC.ProblemDC import BaseDCProblem
+from SimPEG.EM.Static.DC.ProblemDC import Problem3D_CC as DCProblem3D_CC
 from SurveyMMR import Survey
-from FieldsMMR import FieldsMMR, Fields_CC
+from FieldsMMR import FieldsMMR_CC
 from SimPEG.Utils import sdiag
 import numpy as np
 from SimPEG.Utils import Zero
+from scipy.constants import epsilon_0, mu_0
 
 
-class BaseMMRProblem(BaseDCProblem):
-    """
-        Base DC Problem
-    """
-    surveyPair = Survey
-    fieldsPair = FieldsMMR
-    Ainv = None
+class MMRProblem3D_CC(DCProblem3D_CC):
 
-    def fields(self,m):
-    	self.curModel = m
-
-    	if self.Ainv is not None:
-    		self.Ainv.clean()
-
-    	f = self.fieldsPair(self.mesh,self.survey)
-    	A = self.getA()
-
-    	self.Ainv = self.Solver(A, **self.solverOpts)
-    	RHS = self.getRHS()
-    	a = self.Ainv*RHS
-    	Srcs = self.survey.srcList
-    	f[Srcs, self._solutionType] = a
-    	return f
-
-    def getSourceTerm(self):
-        """
-        Evaluates the sources, and puts them in matrix form
-
-        :rtype: tuple
-        :return: q (nC or nN, nSrc)
-        """
-
-        Srcs = self.survey.srcList
-        f = self.fieldsPair
-        j = f[Srcs, 'j']
-
-        #if self._formulation is 'EB':
-         #   n = self.mesh.nN
-            # return NotImplementedError
-
-        #elif self._formulation is 'HJ':
-         #   n = self.mesh.nC
-
-        #q = np.zeros((n, len(Srcs)))
-
-        #for i, src in enumerate(Srcs):
-        #    q[:, i] = src.eval(self)
-        return j
-
-class Problem3D_CC(BaseMMRProblem):
     """
     3D cell centered MMR problem
     """
 
-    _solutionType = 'BSolution'
+    _solutionDCType = 'phiSolution'
+    _sourceType = 'j'
+    _solutionType = 'aSolution'
     _formulation = 'HJ'  # CC potentials means J is on faces
-    fieldsPair = Fields_CC
+    surveyPair = Survey
+    fieldsPair = FieldsMMR_CC
+    Ainv_MMR = None
 
     def __init__(self, mesh, **kwargs):
-        BaseMMRProblem.__init__(self, mesh, **kwargs)
+        DCProblem3D_CC.__init__(self, mesh, **kwargs)
         #self.setBC()
 
-    def getA(self):
+    def fields(self, m):
+        self.curModel = m
+
+        if self.Ainv_MMR is not None:
+            self.Ainv_MMR.clean()
+        
+        f = self.fieldsPair(self.mesh, self.survey)            
+
+        #Solve DC problem
+        A = self.getA()
+        self.Ainv = self.Solver(A, **self.solverOpts)
+        RHS = self.getRHS()
+        u = self.Ainv * RHS
+        Srcs = self.survey.srcList
+        f[Srcs, self._solutionDCType] = u
+
+        #Solve MMR problem        
+        A_MMR = self.getA_MMR()
+        self.Ainv_MMR = self.Solver(A_MMR, **self.solverOpts)
+        RHS_MMR = self.getRHS_MMR(f)
+        ua = self.Ainv_MMR * RHS_MMR
+        f[Srcs, self._solutionType] = ua
+        return f
+
+    def getA_MMR(self):
         """
 
         Make the A matrix for the cell centered MMR problem
@@ -81,40 +62,45 @@ class Problem3D_CC(BaseMMRProblem):
 
         CURL = self.mesh.edgeCurl
         DIV = self.mesh.faceDiv
-        Mue = self.MeMuI
-        Muf = self.MfMui
+        # Mue = self.MeMui
+        # Muf = self.MfMui
+        Mue = self.mesh.getEdgeInnerProduct(1/mu_0)
+        Muf = self.mesh.getFaceInnerProduct(1/mu_0)        
         V = Utils.sdiag(self.mesh.vol)
 
         #D = self.Div
         #G = self.Grad
         #MfRhoI = self.MfRhoI
-        A = CURL*((1/mu_0)*Mue)*CURL.T + DIV.T*V*(1/mu_0)*DIV*Muf
+        A = CURL*Mue*CURL.T + DIV.T*V*DIV*Muf
 
         # I think we should deprecate this for DC problem.
         # if self._makeASymmetric is True:
         #     return V.T * A
         return A
 
-    #def getADeriv(self, u, v, adjoint=False):
+    def getSourceTerm_MMR(self, f):
+        """
+        Evaluates the sources, and puts them in matrix form
 
-        #D = self.Div
-        #G = self.Grad
-        #MfRhoIDeriv = self.MfRhoIDeriv
+        :rtype: tuple
+        :return: q (nC or nN, nSrc)
+        """
 
-        #if adjoint:
-        #    return(MfRhoIDeriv(G * u).T) * (D.T * v)
+        Srcs = self.survey.srcList        
+        nF = self.mesh.nF        
+        j = np.zeros((nF, len(Srcs)))
+        for i, src in enumerate(Srcs):
+           j[:, i] = f[src, 'j'].flatten()
+        return j
 
-        #return D * (MfRhoIDeriv(G * u) * v)
-
-    def getRHS(self):
+    def getRHS_MMR(self, f):
         """
         RHS for the DC problem
 
         q
         """
 
-        RHS = self.getSourceTerm()
-
+        RHS = self.getSourceTerm_MMR(f)
         return RHS
 
     #def getRHSDeriv(self, src, v, adjoint=False):

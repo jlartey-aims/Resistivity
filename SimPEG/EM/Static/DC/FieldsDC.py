@@ -50,12 +50,14 @@ class FieldsDC(SimPEG.Problem.Fields):
 
 
 class Fields_CC(FieldsDC):
-    knownFields = {'phiSolution': 'CC'}
+    knownFields = {'phiSolution': 'CC', 
+                   'phiSolution': 'CC'
+                  }
     aliasFields = {
                     'phi': ['phiSolution', 'CC', '_phi'],
                     'j' : ['phiSolution', 'F', '_j'],
                     'e' : ['phiSolution', 'F', '_e'],
-                    'charge' : ['phiSolution', 'CC', '_charge'],
+                    'charge' : ['phiSolution', 'CC', '_charge']
                   }
                   # primary - secondary
                   # CC variables
