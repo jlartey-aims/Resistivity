@@ -1311,94 +1311,42 @@ class ParametricSplineMap(IdentityMap):
         return sp.csr_matrix(np.c_[g1, g2, g3])
 
 
-###############################################################################
-#                                                                             #
-#                              Depreciated Maps                               #
-#                                                                             #
-###############################################################################
+class BaseParametricMap(IdentityMap):
 
-
-class FullMap(SurjectFull):
-    """FullMap is depreciated. Use SurjectVertical1DMap instead"""
-    def __init__(self, mesh, **kwargs):
-        warnings.warn(
-            "`FullMap` is deprecated and will be removed in future versions."
-            " Use `SurjectFull` instead",
-            FutureWarning)
-        SurjectFull.__init__(self, mesh, **kwargs)
-
-
-class Vertical1DMap(SurjectVertical1D):
-    """Vertical1DMap is depreciated. Use SurjectVertical1D instead"""
-    def __init__(self, mesh, **kwargs):
-        warnings.warn(
-            "`Vertical1DMap` is deprecated and will be removed in future"
-            "versions. Use `SurjectVertical1D` instead",
-            FutureWarning)
-        SurjectVertical1D.__init__(self, mesh, **kwargs)
-
-
-class Map2Dto3D(Surject2Dto3D):
-    """Map2Dto3D is depreciated. Use Surject2Dto3D instead"""
+    slopeFact = 1e2  # will be scaled by the mesh.
+    slope = None
+    indActive = None
 
     def __init__(self, mesh, **kwargs):
-        warnings.warn(
-            "`Map2Dto3D` is deprecated and will be removed in future versions."
-            " Use `Surject2Dto3D` instead",
-            FutureWarning)
-        Surject2Dto3D.__init__(self, mesh, **kwargs)
+
+        super(BaseParametricMap, self).__init__(mesh, **kwargs)
+
+        if self.slope is None:
+            self.slope = self.slopeFact / np.hstack(self.mesh.h).min()
+
+        self.x = [self.mesh.gridCC[:, 0] if self.indActive is None else
+                  self.mesh.gridCC[self.indActive, 0]][0]
+
+        if self.mesh.dim > 1:
+            self.y = [self.mesh.gridCC[:, 1] if self.indActive is None else
+                      self.mesh.gridCC[self.indActive, 1]][0]
+
+        if self.mesh.dim > 2:
+            self.z = [self.mesh.gridCC[:, 2] if self.indActive is None else
+                      self.mesh.gridCC[self.indActive, 2]][0]
+
+    def _atanfct(self, xyz, xyzi, slope):
+        return np.arctan(slope * (xyz - xyzi))/np.pi + 0.5
+
+    def _atanfctDeriv(self, xyz, xyzi, slope):
+        # d/dx(atan(x)) = 1/(1+x**2)
+        x = slope * (xyz - xyzi)
+        dx = - slope
+        return (1./(1 + x**2))/np.pi * dx
 
 
-class ActiveCells(InjectActiveCells):
-    """ActiveCells is depreciated. Use InjectActiveCells instead"""
 
-    def __init__(self, mesh, indActive, valInactive, nC=None):
-        warnings.warn(
-            "`ActiveCells` is deprecated and will be removed in future "
-            "versions. Use `InjectActiveCells` instead",
-            FutureWarning)
-        InjectActiveCells.__init__(self, mesh, indActive, valInactive, nC)
-
-
-class CircleMap(ParametricCircleMap):
-    """CircleMap is depreciated. Use ParametricCircleMap instead"""
-
-    def __init__(self, mesh, logSigma=True):
-        warnings.warn(
-            "`CircleMap` is deprecated and will be removed in future "
-            "versions. Use `ParametricCircleMap` instead",
-            FutureWarning)
-        ParametricCircleMap.__init__(self, mesh, logSigma)
-
-
-class PolyMap(ParametricPolyMap):
-    """PolyMap is depreciated. Use ParametricSplineMap instead"""
-
-    def __init__(self, mesh, order, logSigma=True, normal='X', actInd=None):
-        warnings.warn(
-            "`PolyMap` is deprecated and will be removed in future "
-            "versions. Use `ParametricSplineMap` instead",
-            FutureWarning
-        )
-        ParametricPolyMap(self, mesh, order, logSigma, normal, actInd)
-
-
-class SplineMap(ParametricSplineMap):
-    """SplineMap is depreciated. Use ParametricSplineMap instead"""
-
-    def __init__(self, mesh, pts, ptsv=None, order=3, logSigma=True,
-                 normal='X'):
-        warnings.warn(
-            "`SplineMap` is deprecated and will be removed in future "
-            "versions. Use `ParametricSplineMap` instead",
-            FutureWarning
-        )
-        ParametricSplineMap.__init__(
-            self, mesh, pts, ptsv, order, logSigma, normal
-        )
-
-
-class ParametrizedLayer(IdentityMap):
+class ParametrizedLayer(BaseParametricMap):
     """
         Parametrized Layer Space
 
@@ -1431,27 +1379,27 @@ class ParametrizedLayer(IdentityMap):
 
     """
 
-    slopeFact = 1e2  # will be scaled by the mesh.
-    slope = None
-    indActive = None
+    # slopeFact = 1e2  # will be scaled by the mesh.
+    # slope = None
+    # indActive = None
 
     def __init__(self, mesh, **kwargs):
 
         super(ParametrizedLayer, self).__init__(mesh, **kwargs)
 
-        if self.slope is None:
-            self.slope = self.slopeFact / np.hstack(self.mesh.h).min()
+        # if self.slope is None:
+        #     self.slope = self.slopeFact / np.hstack(self.mesh.h).min()
 
-        self.x = [self.mesh.gridCC[:, 0] if self.indActive is None else
-                  self.mesh.gridCC[self.indActive, 0]][0]
+        # self.x = [self.mesh.gridCC[:, 0] if self.indActive is None else
+        #           self.mesh.gridCC[self.indActive, 0]][0]
 
-        if self.mesh.dim > 1:
-            self.y = [self.mesh.gridCC[:, 1] if self.indActive is None else
-                      self.mesh.gridCC[self.indActive, 1]][0]
+        # if self.mesh.dim > 1:
+        #     self.y = [self.mesh.gridCC[:, 1] if self.indActive is None else
+        #               self.mesh.gridCC[self.indActive, 1]][0]
 
-        if self.mesh.dim > 2:
-            self.z = [self.mesh.gridCC[:, 2] if self.indActive is None else
-                      self.mesh.gridCC[self.indActive, 2]][0]
+        # if self.mesh.dim > 2:
+        #     self.z = [self.mesh.gridCC[:, 2] if self.indActive is None else
+        #               self.mesh.gridCC[self.indActive, 2]][0]
 
     @property
     def nP(self):
@@ -1471,14 +1419,14 @@ class ParametrizedLayer(IdentityMap):
             'layer_thickness': m[3],
         }
 
-    def _atanfct(self, xyz, xyzi, slope):
-        return np.arctan(slope * (xyz - xyzi))/np.pi + 0.5
+    # def _atanfct(self, xyz, xyzi, slope):
+    #     return np.arctan(slope * (xyz - xyzi))/np.pi + 0.5
 
-    def _atanfctDeriv(self, xyz, xyzi, slope):
-        # d/dx(atan(x)) = 1/(1+x**2)
-        x = slope * (xyz - xyzi)
-        dx = - slope
-        return (1./(1 + x**2))/np.pi * dx
+    # def _atanfctDeriv(self, xyz, xyzi, slope):
+    #     # d/dx(atan(x)) = 1/(1+x**2)
+    #     x = slope * (xyz - xyzi)
+    #     dx = - slope
+    #     return (1./(1 + x**2))/np.pi * dx
 
     def _atanLayer(self, mDict):
         if self.mesh.dim == 2:
@@ -2392,5 +2340,94 @@ class ParametrizedBlockInLayer(ParametrizedLayer):
             return sp.csr_matrix(self._deriv2d(m))
         elif self.mesh.dim == 3:
             return sp.csr_matrix(self._deriv3d(m))
+
+
+###############################################################################
+#                                                                             #
+#                              Depreciated Maps                               #
+#                                                                             #
+###############################################################################
+
+
+class FullMap(SurjectFull):
+    """FullMap is depreciated. Use SurjectVertical1DMap instead"""
+    def __init__(self, mesh, **kwargs):
+        warnings.warn(
+            "`FullMap` is deprecated and will be removed in future versions."
+            " Use `SurjectFull` instead",
+            FutureWarning)
+        SurjectFull.__init__(self, mesh, **kwargs)
+
+
+class Vertical1DMap(SurjectVertical1D):
+    """Vertical1DMap is depreciated. Use SurjectVertical1D instead"""
+    def __init__(self, mesh, **kwargs):
+        warnings.warn(
+            "`Vertical1DMap` is deprecated and will be removed in future"
+            "versions. Use `SurjectVertical1D` instead",
+            FutureWarning)
+        SurjectVertical1D.__init__(self, mesh, **kwargs)
+
+
+class Map2Dto3D(Surject2Dto3D):
+    """Map2Dto3D is depreciated. Use Surject2Dto3D instead"""
+
+    def __init__(self, mesh, **kwargs):
+        warnings.warn(
+            "`Map2Dto3D` is deprecated and will be removed in future versions."
+            " Use `Surject2Dto3D` instead",
+            FutureWarning)
+        Surject2Dto3D.__init__(self, mesh, **kwargs)
+
+
+class ActiveCells(InjectActiveCells):
+    """ActiveCells is depreciated. Use InjectActiveCells instead"""
+
+    def __init__(self, mesh, indActive, valInactive, nC=None):
+        warnings.warn(
+            "`ActiveCells` is deprecated and will be removed in future "
+            "versions. Use `InjectActiveCells` instead",
+            FutureWarning)
+        InjectActiveCells.__init__(self, mesh, indActive, valInactive, nC)
+
+
+class CircleMap(ParametricCircleMap):
+    """CircleMap is depreciated. Use ParametricCircleMap instead"""
+
+    def __init__(self, mesh, logSigma=True):
+        warnings.warn(
+            "`CircleMap` is deprecated and will be removed in future "
+            "versions. Use `ParametricCircleMap` instead",
+            FutureWarning)
+        ParametricCircleMap.__init__(self, mesh, logSigma)
+
+
+class PolyMap(ParametricPolyMap):
+    """PolyMap is depreciated. Use ParametricSplineMap instead"""
+
+    def __init__(self, mesh, order, logSigma=True, normal='X', actInd=None):
+        warnings.warn(
+            "`PolyMap` is deprecated and will be removed in future "
+            "versions. Use `ParametricSplineMap` instead",
+            FutureWarning
+        )
+        ParametricPolyMap(self, mesh, order, logSigma, normal, actInd)
+
+
+class SplineMap(ParametricSplineMap):
+    """SplineMap is depreciated. Use ParametricSplineMap instead"""
+
+    def __init__(self, mesh, pts, ptsv=None, order=3, logSigma=True,
+                 normal='X'):
+        warnings.warn(
+            "`SplineMap` is deprecated and will be removed in future "
+            "versions. Use `ParametricSplineMap` instead",
+            FutureWarning
+        )
+        ParametricSplineMap.__init__(
+            self, mesh, pts, ptsv, order, logSigma, normal
+        )
+
+
 
 

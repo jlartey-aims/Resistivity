@@ -8,20 +8,19 @@ TOL = 1e-14
 np.random.seed(121)
 
 
-MAPS_TO_EXCLUDE_2D = ["ComboMap", "ActiveCells", "InjectActiveCells",
-                      "LogMap", "ReciprocalMap",
-                      "Surject2Dto3D", "Map2Dto3D", "Mesh2Mesh",
-                      "ParametricPolyMap", "PolyMap", "ParametricSplineMap",
-                      "SplineMap", "ParametrizedCasingAndLayer",
-                      "ParametrizedLayer", "ParametrizedBlockInLayer",
-                      "Projection"]
-MAPS_TO_EXCLUDE_3D = ["ComboMap", "ActiveCells", "InjectActiveCells",
-                      "LogMap", "ReciprocalMap",
-                      "CircleMap", "ParametricCircleMap", "Mesh2Mesh",
-                      "ParametricPolyMap", "PolyMap", "ParametricSplineMap",
-                      "SplineMap", "ParametrizedCasingAndLayer",
-                      "ParametrizedLayer", "ParametrizedBlockInLayer",
-                      "Projection"]
+MAPS_TO_EXCLUDE_2D = [
+    "ComboMap", "ActiveCells", "InjectActiveCells", "LogMap", "ReciprocalMap",
+    "Surject2Dto3D", "Map2Dto3D", "Mesh2Mesh", "ParametricPolyMap", "PolyMap",
+    "ParametricSplineMap", "SplineMap", "ParametrizedCasingAndLayer",
+    "ParametrizedLayer", "ParametrizedBlockInLayer", "Projection"
+]
+MAPS_TO_EXCLUDE_3D = [
+    "ComboMap", "ActiveCells", "InjectActiveCells", "LogMap", "ReciprocalMap",
+    "CircleMap", "ParametricCircleMap", "Mesh2Mesh", "ParametricPolyMap",
+    "PolyMap", "ParametricSplineMap", "SplineMap",
+    "ParametrizedCasingAndLayer", "ParametrizedLayer",
+    "ParametrizedBlockInLayer", "Projection"
+]
 
 
 class MapTests(unittest.TestCase):
