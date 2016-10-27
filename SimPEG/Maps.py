@@ -1313,37 +1313,51 @@ class ParametricSplineMap(IdentityMap):
 
 class BaseParametricMap(IdentityMap):
 
-    slopeFact = 1e2  # will be scaled by the mesh.
-    slope = None
-    indActive = None
+    """
+    Base Parametric Map
+
+    This map contains the arctan function and its derivative for building up
+    parametric maps. On its own, this class doesn't do anything.
+
+
+    """
+
+    slopeFact = 1e2  # slope factor for arctan fct. Will be scaled by the mesh
+    slope = None   # slope of arctan function. Set only one of slopefact, slope
+    indActive = None  # active indices if using active map
 
     def __init__(self, mesh, **kwargs):
 
         super(BaseParametricMap, self).__init__(mesh, **kwargs)
 
+        # set the slope of the arctan function
         if self.slope is None:
             self.slope = self.slopeFact / np.hstack(self.mesh.h).min()
 
+        # cell centers in the x-direction
         self.x = [self.mesh.gridCC[:, 0] if self.indActive is None else
                   self.mesh.gridCC[self.indActive, 0]][0]
 
+        # if 2D, grab cell centers for y-direction
         if self.mesh.dim > 1:
             self.y = [self.mesh.gridCC[:, 1] if self.indActive is None else
                       self.mesh.gridCC[self.indActive, 1]][0]
 
+        # if 3D, grab cell centers for z-direction
         if self.mesh.dim > 2:
             self.z = [self.mesh.gridCC[:, 2] if self.indActive is None else
                       self.mesh.gridCC[self.indActive, 2]][0]
 
+    # arctan function used to build up parametric map
     def _atanfct(self, xyz, xyzi, slope):
         return np.arctan(slope * (xyz - xyzi))/np.pi + 0.5
 
+    # derivative of the arctan wrt the model.
     def _atanfctDeriv(self, xyz, xyzi, slope):
         # d/dx(atan(x)) = 1/(1+x**2)
         x = slope * (xyz - xyzi)
         dx = - slope
         return (1./(1 + x**2))/np.pi * dx
-
 
 
 class ParametrizedLayer(BaseParametricMap):
@@ -1418,15 +1432,6 @@ class ParametrizedLayer(BaseParametricMap):
             'layer_center': m[2],
             'layer_thickness': m[3],
         }
-
-    # def _atanfct(self, xyz, xyzi, slope):
-    #     return np.arctan(slope * (xyz - xyzi))/np.pi + 0.5
-
-    # def _atanfctDeriv(self, xyz, xyzi, slope):
-    #     # d/dx(atan(x)) = 1/(1+x**2)
-    #     x = slope * (xyz - xyzi)
-    #     dx = - slope
-    #     return (1./(1 + x**2))/np.pi * dx
 
     def _atanLayer(self, mDict):
         if self.mesh.dim == 2:
@@ -1512,6 +1517,277 @@ class ParametrizedLayer(BaseParametricMap):
                 self._deriv_layer_center(mDict),
                 self._deriv_layer_thickness(mDict),
             ]).T)
+
+
+class ParametrizedCasing(BaseParametricMap):
+    """
+        Parametrized casing in a wholespace.
+
+        .. code:: python
+
+            m = [val_background,
+                 val_casing,
+                 val_insideCasing,
+                 casing_radius,
+                 casing_thickness,
+                 casing_bottom,
+                 casing_top
+            ]
+
+    """
+
+    def __init__(self, mesh, **kwargs):
+
+        assert mesh._meshType == 'CYL', (
+            'Parametrized Casing in a layer map only works for a cyl mesh.')
+
+        super(ParametrizedCasing, self).__init__(mesh, **kwargs)
+
+    @property
+    def nP(self):
+        return 7
+
+    @property
+    def shape(self):
+        if self.indActive is not None:
+            return (sum(self.indActive), self.nP)
+        return (self.mesh.nC, self.nP)
+
+    def mDict(self, m):
+        # m = [val_background, val_casing, val_insideCasing,
+        #      casing_radius, casing_thickness,
+        #      casing_bottom, casing_top]
+
+        return {
+            'val_background': m[0],
+            'val_casing': m[1],
+            'val_insideCasing': m[2],
+            'casing_radius': m[3],
+            'casing_thickness': m[4],
+            'casing_bottom': m[5],
+            'casing_top': m[6]
+        }
+
+    def casing_a(self, mDict):
+        return mDict['casing_radius'] - 0.5*mDict['casing_thickness']
+
+    def casing_b(self, mDict):
+        return mDict['casing_radius'] + 0.5*mDict['casing_thickness']
+
+    def _atanCasingLength(self, mDict):
+        return (
+            self._atanfct(self.z, mDict['casing_top'], -self.slope) *
+            self._atanfct(self.z, mDict['casing_bottom'], self.slope)
+        )
+
+    def _atanCasingLengthDeriv_casing_top(self, mDict):
+        return (
+            self._atanfctDeriv(self.z, mDict['casing_top'], -self.slope) *
+            self._atanfct(self.z, mDict['casing_bottom'], self.slope)
+        )
+
+    def _atanCasingLengthDeriv_casing_bottom(self, mDict):
+        return (
+            self._atanfct(self.z, mDict['casing_top'], -self.slope) *
+            self._atanfctDeriv(self.z, mDict['casing_bottom'], self.slope)
+        )
+
+    def _atanInsideCasing(self, mDict):
+        return (
+            self._atanCasingLength(mDict) *
+            self._atanfct(self.x, self.casing_a(mDict), -self.slope)
+        )
+
+    def _atanInsideCasingDeriv_casing_radius(self, mDict):
+        return (
+            self._atanCasingLength(mDict) *
+            self._atanfctDeriv(self.x, self.casing_a(mDict), -self.slope)
+        )
+
+    def _atanInsideCasingDeriv_casing_thickness(self, mDict):
+        return (
+            self._atanCasingLength(mDict) * -0.5 *
+            self._atanfctDeriv(self.x, self.casing_a(mDict), -self.slope)
+        )
+
+    def _atanInsideCasingDeriv_casing_top(self, mDict):
+        return (
+            self._atanCasingLengthDeriv_casing_top(mDict) *
+            self._atanfct(self.x, self.casing_a(mDict), -self.slope)
+        )
+
+    def _atanInsideCasingDeriv_casing_bottom(self, mDict):
+        return (
+            self._atanCasingLengthDeriv_casing_bottom(mDict) *
+            self._atanfct(self.x, self.casing_a(mDict), -self.slope)
+        )
+
+    def _atanCasing(self, mDict):
+        return (
+            self._atanCasingLength(mDict) *
+            self._atanfct(self.x, self.casing_a(mDict), self.slope) *
+            self._atanfct(self.x, self.casing_b(mDict), -self.slope)
+        )
+
+    def _atanCasingDeriv_casing_radius(self, mDict):
+        return (
+            self._atanCasingLength(mDict) *
+            (
+                self._atanfctDeriv(self.x, self.casing_a(mDict), self.slope) *
+                self._atanfct(self.x, self.casing_b(mDict), -self.slope) +
+                self._atanfct(self.x, self.casing_a(mDict), self.slope) *
+                self._atanfctDeriv(self.x, self.casing_b(mDict), -self.slope)
+            )
+        )
+
+    def _atanCasingDeriv_casing_thickness(self, mDict):
+        return (
+            self._atanCasingLength(mDict) *
+            (
+                -0.5 *
+                self._atanfctDeriv(self.x, self.casing_a(mDict), self.slope) *
+                self._atanfct(self.x, self.casing_b(mDict), -self.slope) +
+                self._atanfct(self.x, self.casing_a(mDict), self.slope) *
+                0.5 *
+                self._atanfctDeriv(self.x, self.casing_b(mDict), -self.slope)
+            )
+        )
+
+    def _atanCasingDeriv_casing_bottom(self, mDict):
+        return (
+            self._atanCasingLengthDeriv_casing_bottom(mDict) *
+            self._atanfct(self.x, self.casing_a(mDict), self.slope) *
+            self._atanfct(self.x, self.casing_b(mDict), -self.slope)
+        )
+
+    def _atanCasingDeriv_casing_top(self, mDict):
+        return (
+            self._atanCasingLengthDeriv_casing_top(mDict) *
+            self._atanfct(self.x, self.casing_a(mDict), self.slope) *
+            self._atanfct(self.x, self.casing_b(mDict), -self.slope)
+        )
+
+    def _transform(self, m):
+
+        mDict = self.mDict(m)
+        # assemble the model
+        casing = (mDict['val_casing'] - mDict['val_background']) * self._atanCasing(mDict)
+        insideCasing = (
+            (mDict['val_insideCasing'] - mDict['val_background']) * self._atanInsideCasing(mDict)
+        )
+
+        return casing + insideCasing
+
+    def _deriv_val_background(self, mDict):
+        # contribution from the layered background
+        d_casing_cont_dval_background = (
+            -1. * self._atanCasing(mDict)
+        )
+        d_insideCasing_cont_dval_background = (
+            -1. * self._atanInsideCasing(mDict)
+        )
+        return (
+            d_casing_cont_dval_background +
+            d_insideCasing_cont_dval_background
+        )
+
+    def _deriv_val_layer(self, mDict):
+        d_casing_cont_dval_layer = (
+            -1. * d_layer_cont_dval_layer * self._atanCasing(mDict)
+        )
+        d_insideCasing_cont_dval_layer = (
+            -1. * d_layer_cont_dval_layer * self._atanInsideCasing(mDict)
+        )
+        return (
+            d_casing_cont_dval_layer +
+            d_insideCasing_cont_dval_layer
+        )
+
+    def _deriv_val_casing(self, mDict):
+        d_casing_cont_dval_casing = self._atanCasing(mDict)
+        d_insideCasing_cont_dval_casing = 0.
+        return (
+            d_casing_cont_dval_casing +
+            d_insideCasing_cont_dval_casing
+        )
+
+    def _deriv_val_insideCasing(self, mDict):
+        d_casing_cont_dval_insideCasing = 0.
+        d_insideCasing_cont_dval_insideCasing = self._atanInsideCasing(mDict)
+        return (
+            d_casing_cont_dval_insideCasing +
+            d_insideCasing_cont_dval_insideCasing
+        )
+
+    def _deriv_casing_radius(self, mDict):
+        d_casing_cont_dcasing_radius = (
+            (mDict['val_casing']) *
+            self._atanCasingDeriv_casing_radius(mDict)
+        )
+        d_insideCasing_cont_dcasing_radius = (
+            (mDict['val_insideCasing']) *
+            self._atanInsideCasingDeriv_casing_radius(mDict)
+        )
+        return (
+            d_casing_cont_dcasing_radius +
+            d_insideCasing_cont_dcasing_radius
+        )
+
+    def _deriv_casing_thickness(self, mDict):
+        d_casing_cont_dcasing_thickness = (
+            (mDict['val_casing']) *
+            self._atanCasingDeriv_casing_thickness(mDict)
+        )
+        d_insideCasing_cont_dcasing_thickness = (
+            (mDict['val_insideCasing']) *
+            self._atanInsideCasingDeriv_casing_thickness(mDict)
+        )
+        return (
+            d_casing_cont_dcasing_thickness +
+            d_insideCasing_cont_dcasing_thickness
+        )
+
+    def _deriv_casing_bottom(self, mDict):
+        d_casing_cont_dcasing_bottom = (
+            (mDict['val_casing']) *
+            self._atanCasingDeriv_casing_bottom(mDict)
+        )
+        d_insideCasing_cont_dcasing_bottom = (
+            (mDict['val_insideCasing']) *
+            self._atanInsideCasingDeriv_casing_bottom(mDict)
+        )
+        return (
+            d_casing_cont_dcasing_bottom +
+            d_insideCasing_cont_dcasing_bottom
+        )
+
+    def _deriv_casing_top(self, mDict):
+        d_casing_cont_dcasing_top = (
+            (mDict['val_casing']) *
+            self._atanCasingDeriv_casing_top(mDict)
+        )
+        d_insideCasing_cont_dcasing_top = (
+            (mDict['val_insideCasing']) *
+            self._atanInsideCasingDeriv_casing_top(mDict)
+        )
+        return (
+            d_casing_cont_dcasing_top +
+            d_insideCasing_cont_dcasing_top
+        )
+
+    def deriv(self, m):
+
+        mDict = self.mDict(m)
+
+        return sp.csr_matrix(np.vstack([
+            self._deriv_val_background(mDict),
+            self._deriv_val_casing(mDict),
+            self._deriv_val_insideCasing(mDict),
+            self._deriv_casing_radius(mDict),
+            self._deriv_casing_thickness(mDict),
+            self._deriv_casing_bottom(mDict),
+            self._deriv_casing_top(mDict),
+        ]).T)
 
 
 class ParametrizedCasingAndLayer(ParametrizedLayer):

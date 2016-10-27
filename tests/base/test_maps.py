@@ -11,13 +11,14 @@ np.random.seed(121)
 MAPS_TO_EXCLUDE_2D = [
     "ComboMap", "ActiveCells", "InjectActiveCells", "LogMap", "ReciprocalMap",
     "Surject2Dto3D", "Map2Dto3D", "Mesh2Mesh", "ParametricPolyMap", "PolyMap",
-    "ParametricSplineMap", "SplineMap", "ParametrizedCasingAndLayer",
-    "ParametrizedLayer", "ParametrizedBlockInLayer", "Projection"
+    "ParametricSplineMap", "SplineMap", "ParametrizedCasing",
+    "ParametrizedCasingAndLayer", "ParametrizedLayer",
+    "ParametrizedBlockInLayer", "Projection"
 ]
 MAPS_TO_EXCLUDE_3D = [
     "ComboMap", "ActiveCells", "InjectActiveCells", "LogMap", "ReciprocalMap",
     "CircleMap", "ParametricCircleMap", "Mesh2Mesh", "ParametricPolyMap",
-    "PolyMap", "ParametricSplineMap", "SplineMap",
+    "PolyMap", "ParametricSplineMap", "SplineMap", "ParametrizedCasing",
     "ParametrizedCasingAndLayer", "ParametrizedLayer",
     "ParametrizedBlockInLayer", "Projection"
 ]
@@ -91,6 +92,11 @@ class MapTests(unittest.TestCase):
     def test_ParametricCasingAndLayer(self):
         mapping = Maps.ParametrizedCasingAndLayer(self.meshCyl)
         m = np.r_[-2., 1., 6., 2., -0.1, 0.2, 0.5, 0.2, -0.2, 0.2]
+        self.assertTrue(mapping.test(m))
+
+    def test_ParametricCasing(self):
+        mapping = Maps.ParametrizedCasing(self.meshCyl)
+        m = np.r_[-2., 6., 0.2, 0.5, 0.2, -0.2, 0.2]
         self.assertTrue(mapping.test(m))
 
     def test_transforms_logMap_reciprocalMap(self):
