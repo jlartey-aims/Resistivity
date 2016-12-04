@@ -588,19 +588,40 @@ class CircularLoop(MagDipole):
         return MagneticLoopVectorPotential(
             self.loc, obsLoc, component, mu=self.mu, radius=self.radius,
             orientation=self.orientation
-    )
+        )
+
+
+# class PrimSecSigma_Fields(BaseSrc):
+
+#     def __init__(
+#         self, rxList, freq, loc, sigBack, primaryMesh, primaryFields, **kwargs
+#     ):
+#         self.sigBack = sigBack # needs to be on secondary mesh
+#         self.primaryMesh = primaryMesh
+#         self.primaryFields = primaryFields
+
+#         BaseSrc.__init__(self, rxList, freq=freq, **kwargs)
+
+#     def s_e(self, prob):
+#         return (
+#             prob.MeSigma -  prob.mesh.getEdgeInnerProduct(self.sigBack)
+#         ) * self.ePrimary(prob)
 
 
 class PrimSecSigma(BaseSrc):
 
-    def __init__(self, rxList, freq, sigBack, ePrimary, **kwargs):
+    def __init__(
+        self, rxList, freq, sigBack, ePrimary, bPrimary, **kwargs
+    ):
         self.sigBack = sigBack
+        self._ePrimary = ePrimary
+        self._bPrimary = bPrimary
 
-        BaseSrc.__init__(self, rxList, freq=freq, _ePrimary=ePrimary, **kwargs)
+        BaseSrc.__init__(self, rxList, freq=freq, **kwargs)
 
     def s_e(self, prob):
         return (
-            prob.MeSigma -  prob.mesh.getEdgeInnerProduct(self.sigBack)
+            prob.MeSigma - prob.mesh.getEdgeInnerProduct(self.sigBack)
         ) * self.ePrimary(prob)
 
     def s_eDeriv(self, prob, v, adjoint=False):
