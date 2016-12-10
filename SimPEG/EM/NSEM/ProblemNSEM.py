@@ -10,9 +10,10 @@ import numpy as np
 from SimPEG.EM.Utils.EMUtils import omega, mu_0
 from SimPEG import SolverLU as SimpegSolver, Utils, mkvc
 from ..FDEM.ProblemFDEM import BaseFDEMProblem
-from .SurveyNSEM import Survey, Data
+from .SurveyNSEM import Survey,  Data
 from .FieldsNSEM import BaseNSEMFields, Fields1D_ePrimSec, Fields3D_ePrimSec
 
+from .Utils.loggingUtils import simpeg_logger
 
 class BaseNSEMProblem(BaseFDEMProblem):
     """
@@ -22,6 +23,8 @@ class BaseNSEMProblem(BaseFDEMProblem):
     def __init__(self, mesh, **kwargs):
         BaseFDEMProblem.__init__(self, mesh, **kwargs)
         Utils.setKwargs(self, **kwargs)
+        # Set the logger
+        self.logger = simpeg_logger('loggerForNSEMproblem', 'NSEMproblem_logfile.log')
     # Set the default pairs of the problem
     surveyPair = Survey
     dataPair = Data
@@ -31,7 +34,6 @@ class BaseNSEMProblem(BaseFDEMProblem):
     Solver = SimpegSolver
     solverOpts = {}
 
-    verbose = False
     # Notes:
     # Use the fields and devs methods from BaseFDEMProblem
 
@@ -47,10 +49,11 @@ class BaseNSEMProblem(BaseFDEMProblem):
         :rtype: numpy.ndarray
         :return: Jv (nData,) Data sensitivities wrt m
         """
-
+        self.logger.info('Starting solution of Jvec')
         # Calculate the fields if not given as input
         if f is None:
-           f = self.fields(m)
+            self.logger.debug('Calculating fields')
+            f = self.fields(m)
         # Set current model
         self.model = m
         # Initiate the Jv object
@@ -58,12 +61,16 @@ class BaseNSEMProblem(BaseFDEMProblem):
 
         # Loop all the frequenies
         for freq in self.survey.freqs:
+            startTime = time.time()
+            self.logger.debug('Starting work for {:.3e}'.format(freq))
             # Get the system
             A = self.getA(freq)
             # Factor
+            self.logger.debug('Factoring Ainv')
             Ainv = self.Solver(A, **self.solverOpts)
 
             for src in self.survey.getSrcByFreq(freq):
+                self.logger.debug('Evaluating derivates')
                 # We need fDeriv_m = df/du*du/dm + df/dm
                 # Construct du/dm, it requires a solve
                 # NOTE: need to account for the 2 polarizations in the derivatives.
@@ -77,9 +84,14 @@ class BaseNSEMProblem(BaseFDEMProblem):
                 # Calculate the projection derivatives
                 for rx in src.rxList:
                     # Calculate dP/du*du/dm*v
+                    self.logger.debug('Evaluate rx derivative')
                     Jv[src, rx] = rx.evalDeriv(src, self.mesh, f, mkvc(du_dm_v)) # wrt uPDeriv_u(mkvc(du_dm))
             Ainv.clean()
+            self.logger.debug(
+                'Ran for {:f} seconds'.format(time.time()-startTime)
+            )
         # Return the vectorized sensitivities
+        self.logger.info('Calculation of Jvec - completed')
         return mkvc(Jv)
 
     def Jtvec(self, m, v, f=None):
@@ -92,8 +104,9 @@ class BaseNSEMProblem(BaseFDEMProblem):
         :rtype: numpy.ndarray
         :return: Jtv (nP,) Data sensitivities wrt m
         """
-
+        self.logger.info('Starting solution of Jtvec')
         if f is None:
+            self.logger.debug('Calculating fields')
             f = self.fields(m)
 
         self.model = m
@@ -105,8 +118,10 @@ class BaseNSEMProblem(BaseFDEMProblem):
         Jtv = np.zeros(m.size)
 
         for freq in self.survey.freqs:
+            startTime = time.time()
+            self.logger.debug('Starting work for {:.3e}'.format(freq))
             AT = self.getA(freq).T
-
+            self.logger.debug('Factoring Atinv')
             ATinv = self.Solver(AT, **self.solverOpts)
 
             for src in self.survey.getSrcByFreq(freq):
@@ -116,8 +131,10 @@ class BaseNSEMProblem(BaseFDEMProblem):
                 for rx in src.rxList:
                     # Get the adjoint evalDeriv
                     # PTv needs to be nE,2
+                    self.logger.debug('Evaluating rx dervivative')
                     PTv = rx.evalDeriv(src, self.mesh, f, mkvc(v[src, rx]), adjoint=True) # wrt f, need possibility wrt m
                     # Get the
+                    self.logger.debug('Evaluate other derivatives')
                     dA_duIT = mkvc(ATinv * PTv) # Force (nU,) shape
                     dA_dmT = self.getADeriv(freq, u_src, dA_duIT, adjoint=True)
                     dRHS_dmT = self.getRHSDeriv(freq, dA_duIT, adjoint=True)
@@ -134,6 +151,10 @@ class BaseNSEMProblem(BaseFDEMProblem):
                         raise Exception('Must be real or imag')
             # Clean the factorization, clear memory.
             ATinv.clean()
+            self.logger.debug(
+                'Ran for {:f} seconds'.format(time.time()-startTime)
+            )
+        self.logger.info('Calculation of Jtvec - completed')
         return Jtv
 
 ###################################
@@ -272,6 +293,7 @@ class Problem1D_ePrimSec(BaseNSEMProblem):
         S_eDeriv = mkvc(Src.S_eDeriv_m(self, v, adjoint),)
         return -1j * omega(freq) * S_eDeriv
 
+
     def fields(self, m=None):
         """
         Function to calculate all the fields for the model m.
@@ -279,7 +301,11 @@ class Problem1D_ePrimSec(BaseNSEMProblem):
         :param numpy.ndarray m: Conductivity model (nC,)
         :rtype: SimPEG.EM.NSEM.FieldsNSEM.Fields1D_ePrimSec
         :return: NSEM fields object containing the solution
+
         """
+
+        self.logger.info('Starting to calculate fields')
+
         # Set the current model
         if m is not None:
             self.model = m
@@ -287,10 +313,8 @@ class Problem1D_ePrimSec(BaseNSEMProblem):
         F = self.fieldsPair(self.mesh, self.survey)
         # Loop over the frequencies
         for freq in self.survey.freqs:
-            if self.verbose:
-                startTime = time.time()
-                print('Starting work for {:.3e}'.format(freq))
-                sys.stdout.flush()
+            startTime = time.time()
+            self.logger.debug('Starting work for {:.3e}'.format(freq))
             A = self.getA(freq)
             rhs  = self.getRHS(freq)
             Ainv = self.Solver(A, **self.solverOpts)
@@ -301,9 +325,11 @@ class Problem1D_ePrimSec(BaseNSEMProblem):
             # NOTE: only store the e_solution(secondary), all other components calculated in the fields object
             F[Src, 'e_1dSolution'] = e_s
 
-            if self.verbose:
-                print('Ran for {:f} seconds'.format(time.time()-startTime))
-                sys.stdout.flush()
+            self.logger.debug(
+                'Ran for {:f} seconds'.format(time.time()-startTime)
+            )
+            Ainv.clean()
+        self.logger.info('Calculation of fields - completed')
         return F
 
 
@@ -440,16 +466,18 @@ class Problem3D_ePrimSec(BaseNSEMProblem):
         :return: Fields object with of the solution
 
         """
+
+
+        self.logger.info('Starting to calculate fields')
+
         # Set the current model
         if m is not None:
             self.model = m
 
         F = self.fieldsPair(self.mesh, self.survey)
         for freq in self.survey.freqs:
-            if self.verbose:
-                startTime = time.time()
-                print('Starting work for {:.3e}'.format(freq))
-                sys.stdout.flush()
+            startTime = time.time()
+            self.logger.debug('Starting work for {:.3e}'.format(freq))
             A = self.getA(freq)
             rhs = self.getRHS(freq)
             # Solve the system
@@ -464,8 +492,10 @@ class Problem3D_ePrimSec(BaseNSEMProblem):
             F[Src, 'e_pySolution'] = e_s[:, 1]
             # Note curl e = -iwb so b = -curl/iw
 
-            if self.verbose:
-                print('Ran for {:f} seconds'.format(time.time()-startTime))
-                sys.stdout.flush()
+            self.logger.debug(
+                'Ran for {:f} seconds'.format(time.time()-startTime)
+            )
             Ainv.clean()
+
+        self.logger.info('Calculation of fields - completed')
         return F
