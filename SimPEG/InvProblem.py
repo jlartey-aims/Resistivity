@@ -117,13 +117,15 @@ class BaseInvProblem(Props.BaseSimPEG):
     def evalFunction(self, m, return_g=True, return_H=True):
         """evalFunction(m, return_g=True, return_H=True)
         """
-
+        logger = self.dmisfit.prob.logger
+        logger.info('Starting calculations in invProb.evalFunction')
         self.model = m
         gc.collect()
 
         # Store fields if doing a line-search
         f = self.getFields(m, store=(return_g is False and return_H is False))
 
+        logger.debug('Solve the objective function')
         phi_d = self.dmisfit.eval(m, f=f)
         phi_m = self.reg.eval(m)
 
@@ -137,6 +139,7 @@ class BaseInvProblem(Props.BaseSimPEG):
 
         out = (phi,)
         if return_g:
+            logger.debug('Solving the objective function gradient')
             phi_dDeriv = self.dmisfit.evalDeriv(m, f=f)
             phi_mDeriv = self.reg.evalDeriv(m)
 
@@ -144,6 +147,7 @@ class BaseInvProblem(Props.BaseSimPEG):
             out += (g,)
 
         if return_H:
+            logger.debug('Solving the objective function Hessian')
             def H_fun(v):
                 phi_d2Deriv = self.dmisfit.eval2Deriv(m, v, f=f)
                 phi_m2Deriv = self.reg.eval2Deriv(m, v=v)

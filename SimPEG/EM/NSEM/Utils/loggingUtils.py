@@ -86,8 +86,8 @@ class simpeg_logger(properties.HasProperties):
         self.stream_level = 'INFO'
         # Create a formatter and set to the handlers
         self._formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - ' +
-            '%(levelname)s - %(message)s'
+            '%(asctime)s - %(name)s - %(levelname)s -' +
+            '%(module)s - %(message)s'
         )
         self._file_handler.setFormatter(self._formatter)
         self._stream_handler.setFormatter(self._formatter)
