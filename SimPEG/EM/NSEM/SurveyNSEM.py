@@ -19,7 +19,7 @@ from numpy.lib import recfunctions as recFunc
 
 from SimPEG import Survey as SimPEGsurvey, mkvc
 from .SrcNSEM import BaseNSEMSrc, Planewave_xy_1Dprimary, Planewave_xy_1DhomotD
-from .RxNSEM import Point_impedance3D, Point_tipper3D
+from .RxNSEM import Point_impedance3D, Point_tipper3D, Point_horizontalmagvar3D
 from .Utils.plotUtils import DataNSEM_plot_functions
 
 #########
@@ -118,11 +118,14 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
 
         # Define the record fields
         dtRI = [('freq',float),('x',float),('y',float),('z',float),('zxxr',float),('zxxi',float),('zxyr',float),('zxyi',float),
-        ('zyxr',float),('zyxi',float),('zyyr',float),('zyyi',float),('tzxr',float),('tzxi',float),('tzyr',float),('tzyi',float)]
-        dtCP = [('freq',float),('x',float),('y',float),('z',float),('zxx',complex),('zxy',complex),('zyx',complex),('zyy',complex),('tzx',complex),('tzy',complex)]
+        ('zyxr',float),('zyxi',float),('zyyr',float),('zyyi',float),('mxxr',float),('mxxi',float),('mxyr',float),('mxyi',float),
+        ('myxr',float),('myxi',float),('myyr',float),('myyi',float),('tzxr',float),('tzxi',float),('tzyr',float),('tzyi',float)]
+        dtCP = [('freq',float),('x',float),('y',float),('z',float),('zxx',complex),('zxy',complex),('zyx',complex),('zyy',complex),
+        ('mxx',complex),('mxy',complex),('myx',complex),('myy',complex),('tzx',complex),('tzy',complex)]
         for src in self.survey.srcList:
             # Temp array for all the receivers of the source.
-            # Note: needs to be written more generally, using diffterent rxTypes and not all the data at the locaitons
+            # Note: needs to be written more generally, using diffterent rxTypes
+            # and not all the data at the locaitons
             # Assume the same locs for all RX
             locs = src.rxList[0].locs
             if locs.shape[1] == 1:
@@ -132,14 +135,18 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
             tArrRec = np.concatenate((src.freq*np.ones((locs.shape[0],1)),locs,np.nan*np.ones((locs.shape[0],12))),axis=1).view(dtRI)
             # np.array([(src.freq,rx.locs[0,0],rx.locs[0,1],rx.locs[0,2],np.nan ,np.nan ,np.nan ,np.nan ,np.nan ,np.nan ,np.nan ,np.nan ) for rx in src.rxList],dtype=dtRI)
             # Get the type and the value for the DataNSEM object as a list
-            typeList = [[rx.orientation,rx.component,self[src,rx]] for rx in src.rxList]
             # Insert the values to the temp array
-            for nr,(k, c, val) in enumerate(typeList):
-                zt_type = 't' if 'z' in k else 'z'
-                key = zt_type + k + c[0]
-                tArrRec[key] = mkvc(val,2)
-            # Masked array
-            # mArrRec = np.ma.MaskedArray(_rec_to_ndarr(tArrRec),mask=np.isnan(_rec_to_ndarr(tArrRec))).view(dtype=tArrRec.dtype)
+            for rx in src.rxList:
+                if isinstance(rx, Point_horizontalmagvar3D):
+                    zt_type = 'm'
+                elif isinstance(rx, Point_impedance3D):
+                    zt_type = 'z'
+                elif isinstance(rx, Point_tipper3D):
+                    zt_type = 't'
+                else:
+                    raise TypeError('Not implement for a receiver type {}'.format(str(rx)))
+                key = zt_type + rx.orientation + rx.component[0]
+                tArrRec[key] = mkvc(self[src,rx],2)
 
             try:
                 outTemp = recFunc.stack_arrays((outTemp,tArrRec))
@@ -153,7 +160,7 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
                 outArr = np.empty(outTemp.shape, dtype=dtCP)
                 for comp in ['freq','x','y','z']:
                     outArr[comp] = outTemp[comp].copy()
-                for comp in ['zxx','zxy','zyx','zyy','tzx','tzy']:
+                for comp in ['zxx','zxy','zyx','zyy','tzx','tzy','mxx','mxy','myx','myy']:
                     outArr[comp] = outTemp[comp+'r'].copy() + 1j*outTemp[comp+'i'].copy()
             else:
                 raise NotImplementedError('{:s} is not implemented, as to be RealImag or Complex.')
@@ -188,7 +195,7 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
             # Find that data for freq
             dFreq = recArray[recArray['freq'] == freq].copy()
             # Find the impedance rxTypes in the recArray.
-            rxTypes = [ comp for comp in recArray.dtype.names if (len(comp)==4 or len(comp)==3) and 'z' in comp]
+            rxTypes = [ comp for comp in recArray.dtype.names if (len(comp)==4 or len(comp)==3) and ('z' in comp or 'm' in comp)]
             for rxType in rxTypes:
                 # Find index of not nan values in rxType
                 notNaNind = ~np.isnan(dFreq[rxType].copy())
@@ -205,11 +212,20 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
                             dataList.append(dFreq[rxType][notNaNind].real.copy())
                             rxList.append(Point_impedance3D(locs,rxType[1:3],'imag'))
                             dataList.append(dFreq[rxType][notNaNind].imag.copy())
+                        elif 'm' in rxType:
+                            rxList.append(Point_horizontalmagvar3D(locs,rxType[1:3],'real'))
+                            dataList.append(dFreq[rxType][notNaNind].real.copy())
+                            rxList.append(Point_horizontalmagvar3D(locs,rxType[1:3],'imag'))
+                            dataList.append(dFreq[rxType][notNaNind].imag.copy())
                     else:
                         component = 'real' if 'r' in rxType else 'imag'
                         if 'z' in rxType:
                             rxList.append(
                                 Point_impedance3D(locs, rxType[1:3], component))
+                            dataList.append(dFreq[rxType][notNaNind].copy())
+                        if 'z' in rxType:
+                            rxList.append(
+                                Point_horizontalmagvar3D(locs, rxType[1:3], component))
                             dataList.append(dFreq[rxType][notNaNind].copy())
                         if 't' in rxType:
                             rxList.append(Point_tipper3D(locs, rxType[1:3], component))

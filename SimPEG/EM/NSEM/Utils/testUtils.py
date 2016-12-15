@@ -6,7 +6,8 @@ import numpy as np
 
 import SimPEG as simpeg
 from SimPEG.Utils import meshTensor
-from SimPEG.EM.NSEM.RxNSEM import Point_impedance1D, Point_impedance3D, Point_tipper3D
+from SimPEG.EM.NSEM.RxNSEM import (Point_impedance1D,
+    Point_impedance3D, Point_tipper3D, Point_horizontalmagvar3D)
 from SimPEG.EM.NSEM.SurveyNSEM import Survey
 from SimPEG.EM.NSEM.SrcNSEM import Planewave_xy_1Dprimary, Planewave_xy_1DhomotD
 from SimPEG.EM.NSEM.ProblemNSEM import Problem3D_ePrimSec
@@ -76,28 +77,28 @@ def setup1DSurvey(sigmaHalf, tD=False, structure=False):
     return (survey, sigma, sigmaBack, m1d)
 
 
-def setupSimpegNSEM_ePrimSec(inputSetup, comp='Imp', singleFreq=False, expMap=True):
+def setupSimpegNSEM_ePrimSec(inputSetup, tf_type='Imp', singleFreq=False, expMap=True):
 
     M, freqs, sig, sigBG, rx_loc = inputSetup
     # Make a receiver list
     rxList = []
-    if comp == 'All':
-        rx_type_list = ['xx', 'xy', 'yx', 'yy', 'zx', 'zy']
-    elif comp == 'Imp':
-        rx_type_list = ['xx', 'xy', 'yx', 'yy']
-    elif comp == 'Tip':
-        rx_type_list = ['zx', 'zy']
-    else:
-        rx_type_list = [comp]
-
-    for rx_type in rx_type_list:
-        if rx_type in ['xx', 'xy', 'yx', 'yy']:
+    if tf_type in ['Imp','All']:
+        for rx_type in ['xx', 'xy', 'yx', 'yy']:
             rxList.append(Point_impedance3D(rx_loc, rx_type, 'real'))
             rxList.append(Point_impedance3D(rx_loc, rx_type, 'imag'))
-        if rx_type in ['zx', 'zy']:
+    if tf_type in ['Tip','All']:
+        for rx_type in ['zx', 'zy']:
             rxList.append(Point_tipper3D(rx_loc, rx_type, 'real'))
             rxList.append(Point_tipper3D(rx_loc, rx_type, 'imag'))
-
+    if tf_type in ['HMV','All']:
+        for rx_type in ['xx', 'xy', 'yx', 'yy']:
+            rx_num = rx_loc[1::,:]
+            rx_num = rx_num.reshape(rx_num.shape + (1,))
+            rx_ref = np.ones_like(rx_num[:,:,0]) * rx_loc[0,:]
+            rx_ref = rx_ref.reshape(rx_ref.shape + (1,))
+            rx_loc_mat = np.concatenate((rx_num, rx_ref),axis=2)
+            rxList.append(Point_horizontalmagvar3D(rx_loc_mat, rx_type, 'real'))
+            rxList.append(Point_horizontalmagvar3D(rx_loc_mat, rx_type, 'imag'))
     # Source list
     srcList = []
 

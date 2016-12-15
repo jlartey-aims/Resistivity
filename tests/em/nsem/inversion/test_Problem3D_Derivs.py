@@ -16,11 +16,11 @@ CONDUCTIVITY = 1e1
 MU = mu_0
 
 # Test the Jvec derivative
-def DerivJvecTest(inputSetup, comp='All', freq=False, expMap=True):
+def DerivJvecTest(inputSetup, tf_type='All', freq=False, expMap=True):
     (M, freqs, sig, sigBG, rx_loc) = inputSetup
-    survey, problem = NSEM.Utils.testUtils.setupSimpegNSEM_ePrimSec(inputSetup, comp=comp, singleFreq=freq, expMap=expMap)
+    survey, problem = NSEM.Utils.testUtils.setupSimpegNSEM_ePrimSec(inputSetup, tf_type=tf_type, singleFreq=freq, expMap=expMap)
     print('Using {0} solver for the problem'.format(problem.Solver))
-    print('Derivative test of Jvec for eForm primary/secondary for {} comp at {}\n'.format(comp, survey.freqs))
+    print('Derivative test of Jvec for eForm primary/secondary for {} tf_type at {}\n'.format(tf_type, survey.freqs))
     # problem.mapping = simpeg.Maps.ExpMap(problem.mesh)
     # problem.sigmaPrimary = np.log(sigBG)
     x0 = np.log(sigBG)
@@ -36,9 +36,9 @@ def DerivJvecTest(inputSetup, comp='All', freq=False, expMap=True):
     return simpeg.Tests.checkDerivative(fun, x0, num=3, plotIt=False, eps=FLR)
 
 
-def DerivProjfieldsTest(inputSetup, comp='All', freq=False):
+def DerivProjfieldsTest(inputSetup, tf_type='All', freq=False):
 
-    survey, problem = NSEM.Utils.testUtils.setupSimpegNSEM_ePrimSec(inputSetup, comp, freq)
+    survey, problem = NSEM.Utils.testUtils.setupSimpegNSEM_ePrimSec(inputSetup, tf_type, freq)
     print('Derivative test of data projection for eFormulation primary/secondary\n')
     # problem.mapping = simpeg.Maps.ExpMap(problem.mesh)
     # Initate things for the derivs Test
@@ -79,6 +79,8 @@ class NSEM_DerivTests(unittest.TestCase):
         self.assertTrue(DerivJvecTest(NSEM.Utils.testUtils.halfSpace(1e-2), 'Tip', .1))
     # def test_derivJvec_tzxr(self):self.assertTrue(DerivJvecTest(NSEM.Utils.testUtils.halfSpace(1e-2),'zx',.1))
     # def test_derivJvec_tzyi(self):self.assertTrue(DerivJvecTest(NSEM.Utils.testUtils.halfSpace(1e-2),'zy',.1))
+    def test_derivJvec_tipperAll(self):
+        self.assertTrue(DerivJvecTest(NSEM.Utils.testUtils.halfSpace(1e-2), 'HMV', .1))
 
 if __name__ == '__main__':
     unittest.main()
