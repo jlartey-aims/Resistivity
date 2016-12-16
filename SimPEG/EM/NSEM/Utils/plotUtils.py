@@ -7,6 +7,8 @@ import numpy as np
 
 import properties
 from SimPEG.EM.Utils.EMUtils import mu_0, omega
+from SimPEG.EM.NSEM.RxNSEM import (Point_horizontalmagvar3D,
+    Point_tipper3D, Point_impedance3D)
 
 # Define the default component dictionaries
 DEFAULT_COMP_DICT = {
@@ -279,9 +281,9 @@ class DataNSEM_plot_functions(object):
         """
         pass
 
-    def plot_app_res(self, location,
-                     components=['xy', 'yx'], ax=None, errorbars=False,
-                     comp_plot_dict=DEFAULT_COMP_DICT):
+    def plot_app_res(
+        self, location, components=['xy', 'yx'], ax=None,
+        errorbars=False, comp_plot_dict=DEFAULT_COMP_DICT):
         """
         Plot apperent resistivity curves at a given location
 
@@ -315,21 +317,21 @@ class DataNSEM_plot_functions(object):
                 comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
             self.station_component(
-                location, comp, 'app_res',
+                location, 'Z', comp, 'app_res',
                 ax=ax, **st_kwargs)
             if errorbars:
                 eb_kwargs = _validate_kwargs(
                     comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
                 self.station_errorbars(
-                    location, comp, 'app_res',
+                    location, 'Z', comp, 'app_res',
                     ax=ax, **eb_kwargs)
 
         return ax
 
-    def plot_app_phs(self, location,
-                     components=['xy', 'yx'], ax=None, errorbars=False,
-                     comp_plot_dict=DEFAULT_COMP_DICT):
+    def plot_app_phs(
+        self, location, components=['xy', 'yx'], ax=None,
+        errorbars=False, comp_plot_dict=DEFAULT_COMP_DICT):
         """
         Plot apperent resistivity curves at a given location
 
@@ -361,21 +363,21 @@ class DataNSEM_plot_functions(object):
                 comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
             self.station_component(
-                location, comp, 'phase',
+                location, 'Z', comp, 'phase',
                 ax=ax, **st_kwargs)
             if errorbars:
                 eb_kwargs = _validate_kwargs(
                     comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
                 self.station_errorbars(
-                    location, comp, 'phase',
+                    location, 'Z', comp, 'phase',
                     ax=ax, **eb_kwargs)
 
         return ax
 
-    def plot_imp_amp(self, location,
-                     components=['xy', 'yx'], ax=None, errorbars=False,
-                     comp_plot_dict=DEFAULT_COMP_DICT):
+    def plot_imp_amp(
+        self, location, components=['xy', 'yx'], ax=None,
+        errorbars=False, comp_plot_dict=DEFAULT_COMP_DICT):
         """
         Plot impedance amplitude curves at a given location
 
@@ -408,21 +410,21 @@ class DataNSEM_plot_functions(object):
                 comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
             self.station_component(
-                location, comp, 'amplitude',
+                location, 'Z', comp, 'amplitude',
                 ax=ax, **st_kwargs)
             if errorbars:
                 eb_kwargs = _validate_kwargs(
                     comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
                 self.station_errorbars(
-                    location, comp, 'amplitude',
+                    location, 'Z', comp, 'amplitude',
                     ax=ax, **eb_kwargs)
 
         return ax
 
-    def plot_tip_amp(self, location,
-                     components=['zx', 'zy'], ax=None, errorbars=False,
-                     comp_plot_dict=DEFAULT_COMP_DICT):
+    def plot_tip_amp(
+        self, location, components=['zx', 'zy'], ax=None,
+        errorbars=False, comp_plot_dict=DEFAULT_COMP_DICT):
         """
         Plot tipper amplitude curves at a given location
 
@@ -455,19 +457,21 @@ class DataNSEM_plot_functions(object):
                 comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
             self.station_component(
-                location, comp, 'amplitude',
+                location, 'T', comp, 'amplitude',
                 ax=ax, **st_kwargs)
             if errorbars:
                 eb_kwargs = _validate_kwargs(
                     comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
                 self.station_errorbars(
-                    location, comp, 'amplitude',
+                    location, 'T', comp, 'amplitude',
                     ax=ax, **eb_kwargs)
 
         return ax
 
-    def map_iso_frequency(self, freq, ax=None, **plot_kwargs):
+    def map_iso_frequency(
+        self, freq, tensor, component='xy', ax=None,
+        plot_error=False, **plot_kwargs):
         """
         Function that maps the data at an certain frequency.
         :param frequency: The frequency to map the data for
@@ -476,58 +480,17 @@ class DataNSEM_plot_functions(object):
         :type ax: :class:`axes <matplotlib.axes>`
 
         """
-    #     def plotIsoFreqNSimpedance(ax,freq,array,flag,par='abs',colorbar=True,colorNorm='SymLog',cLevel=True,contour=True):
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+            ax.invert_xaxis()
+            ax.set_yscale('log')
+            ax.set_xlabel('Distance')
+            ax.set_ylabel('Frequency [Hz]')
+        else:
+            fig = ax.get_figure()
 
-    # indUniFreq = np.where(freq==array['freq'])
-
-
-    # x, y = array['x'][indUniFreq],array['y'][indUniFreq]
-    # if par == 'abs':
-    #     zPlot = np.abs(array[flag][indUniFreq])
-    #     cmap = plt.get_cmap('OrRd_r')#seismic')
-    #     level = np.logspace(0,-5,31)
-    #     clevel = np.logspace(0,-4,5)
-    #     plotNorm = colors.LogNorm()
-    # elif par == 'real':
-    #     zPlot = np.real(array[flag][indUniFreq])
-    #     cmap = plt.get_cmap('RdYlBu')
-    #     if cLevel:
-    #         level = np.concatenate((-np.logspace(0,-10,31),np.logspace(-10,0,31)))
-    #         clevel = np.concatenate((-np.logspace(0,-8,5),np.logspace(-8,0,5)))
-    #     else:
-    #         level = np.linspace(zPlot.min(),zPlot.max(),100)
-    #         clevel = np.linspace(zPlot.min(),zPlot.max(),10)
-    #     if colorNorm=='SymLog':
-    #         plotNorm = colors.SymLogNorm(1e-10,linscale=2)
-    #     else:
-    #         plotNorm = colors.Normalize()
-    # elif par == 'imag':
-    #     zPlot = np.imag(array[flag][indUniFreq])
-    #     cmap = plt.get_cmap('RdYlBu')
-    #     level = np.concatenate((-np.logspace(0,-10,31),np.logspace(-10,0,31)))
-    #     clevel = np.concatenate((-np.logspace(0,-8,5),np.logspace(-8,0,5)))
-    #     plotNorm = colors.SymLogNorm(1e-10,linscale=2)
-    #     if cLevel:
-    #         level = np.concatenate((-np.logspace(0,-10,31),np.logspace(-10,0,31)))
-    #         clevel = np.concatenate((-np.logspace(0,-8,5),np.logspace(-8,0,5)))
-    #     else:
-    #         level = np.linspace(zPlot.min(),zPlot.max(),100)
-    #         clevel = np.linspace(zPlot.min(),zPlot.max(),10)
-    #     if colorNorm=='SymLog':
-    #         plotNorm = colors.SymLogNorm(1e-10,linscale=2)
-    #     elif colorNorm=='Lin':
-    #         plotNorm = colors.Normalize()
-    # if contour:
-    #     cs = ax.tricontourf(x,y,zPlot,levels=level,cmap=cmap,norm=plotNorm)#,extend='both')
-    # else:
-    #     uniX,uniY = np.unique(x),np.unique(y)
-    #     X,Y = np.meshgrid(np.append(uniX-25,uniX[-1]+25),np.append(uniY-25,uniY[-1]+25))
-    #     cs = ax.pcolor(X,Y,np.reshape(zPlot,(len(uniY),len(uniX))),cmap=cmap,norm=plotNorm)
-    # if colorbar:
-    #     plt.colorbar(cs,cax=ax.cax,ticks=clevel,format='%1.2e')
-    #     ax.set_title(flag+' '+par,fontsize=8)
-    # return cs
-
+        self.frequency_map(freq, tensor, component=component, ax=ax,
+                          plot_error=plot_error, **plot_kwargs)
 
     def map_data_locations(self, ax=None, **plot_kwargs):
         """
@@ -569,10 +532,10 @@ class DataNSEM_plot_functions(object):
         return (fig, ax)
 
 
-    def station_component(self, location, orientation, component,
-                               ax=None, **plot_kwargs):
+    def station_component(
+        self, location, tensor, orientation, component,
+        ax=None, **plot_kwargs):
         """
-
         :param numpy.ndarray location: Coordnaties of the station to plot
         :param str orientation: The orientation of the data
         :param str component: The data component to plot
@@ -589,17 +552,17 @@ class DataNSEM_plot_functions(object):
 
         # Plot the data
         freqs, plot_data = _get_plot_data(self,
-                                          location, orientation,
+                                          location, tensor, orientation,
                                           component)
         # Plot
         plot_obj = ax.plot(freqs, plot_data, **plot_kwargs)
 
-
         return (fig, ax, plot_obj)
 
 
-    def station_errorbars(self, location, orientation, component,
-                          ax=None, **plot_kwargs):
+    def station_errorbars(
+        self, location, tensor, orientation, component,
+        ax=None, **plot_kwargs):
         """
 
         :param numpy.ndarray location: Coordnaties of the station to plot
@@ -618,13 +581,14 @@ class DataNSEM_plot_functions(object):
 
         # Plot the data
         freqs, plot_data, errorbars = _get_station_data(
-            self, location, orientation, component, plot_error=True)
+            self, location, tensor, orientation, component, plot_error=True)
         plot_obj = ax.errorbar(freqs, plot_data, yerr=errorbars,
                                **plot_kwargs)
         return (fig, ax, plot_obj)
 
-    def frequency_map(self, frequency, orientation, component,
-                      ax=None, plot_error=True, **plot_kwargs):
+    def frequency_map(
+        self, frequency, tensor, orientation, component,
+        ax=None, plot_error=True, **plot_kwargs):
         """
         Function to generate a iso-frequency map
 
@@ -643,23 +607,135 @@ class DataNSEM_plot_functions(object):
             fig = ax.get_figure()
 
         # Plot the data
-        locs, plot_data, errorbars = _get_station_data(
-            self, frequency, orientation, component,plot_error)
-        plot_obj = plt.tricontourf(locs, plot_data,
-                               **plot_kwargs)
+        locs, plot_data, errorbars = _get_map_data(
+            self, frequency, tensor, orientation, component, plot_error)
+        if plot_error:
+            plot_obj = plt.tricontourf(locs, errorbars[0],
+                                       **plot_kwargs)
+        else:
+            plot_obj = plt.tricontourf(locs, plot_data,
+                                       **plot_kwargs)
+        return (fig, ax, plot_obj)
+
+    def section_plot(
+        self, sectDict, tensor, orientation, component,
+        ax=None, plot_error=False, **plot_kwargs):
+        """
+        Function to generate a section plot
+
+        :param numpy.ndarray sectDict: Section dictionary to be mapped
+            with keys of 'x' or 'y' and the coordinate
+        :param str orientation: The orientation of the data
+        :param str component: The data component to plot
+        :param matplotlib.axes ax (optional):
+        :param matplotlib.lines.Line2D keyword_arguments plot_kwargs)
+
+        """
+
+        # Sort the axes
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+        else:
+            fig = ax.get_figure()
+
+        # Plot the data
+        info_set = _get_section_data(self,
+            sectDict, tensor, orientation, component, plot_error)
+        if plot_error:
+            freqs, locs, plot_data, errorbars = info_set
+        else:
+            freqs, locs, plot_data = info_set
+        # Find the location
+        loc_arr = locs[:, 1 if 'x' in sectDict.keys() else 0]
+        # Make the plot points
+        xP, yP = loc_arr, freqs
+        if plot_error:
+            plot_obj = plt.tricontourf(
+                xP.reshape(-1,), yP.reshape(-1,), errorbars[0], **plot_kwargs)
+        else:
+            plot_obj = plt.tricontourf(
+                xP.reshape(-1,), yP.reshape(-1,), plot_data, **plot_kwargs)
         return (fig, ax, plot_obj)
 
 # Hidden utils functions
-def _get_map_data(data, frequency, orientation, component, plot_error=False):
+def _get_section_data(
+    data, sectDict, tensor, orientation, component,
+    plot_error=False):
     """
     Function for getting frequency map data
     """
 
     # Get the components
     if component in ['app_res', 'phase', 'amplitude']:
-        real_tuple = _extract_frequency_data(data, frequency, orientation,
+        real_tuple = _extract_section_data(data, sectDict, tensor,
+            orientation, 'real', plot_error)
+        imag_tuple = _extract_section_data(data, sectDict, tensor,
+            orientation, 'imag', plot_error)
+        if plot_error:
+            freqs, locs, real_data, real_std, real_floor = real_tuple
+            freqs, locs, imag_data, imag_std, imag_floor = imag_tuple
+            # Add up the uncertainties
+            real_uncert = real_std * np.abs(real_data) + real_floor
+            imag_uncert = imag_std * np.abs(imag_data) + imag_floor
+        else:
+            freqs, real_data = real_tuple
+            freqs, imag_data = imag_tuple
+
+        if 'app_res' in component:
+            comp_data = real_data + 1j * imag_data
+            plot_data = (
+                1. / (mu_0 * omega(freqs))) * np.abs(comp_data) ** 2
+            if plot_error:
+                res_uncert = (
+                    (2. / (mu_0 * omega(freqs))) *
+                    (real_data * real_uncert + imag_data * imag_uncert)
+                )
+                error = res_uncert
+        elif 'phase' in component:
+            plot_data = np.arctan2(imag_data, real_data) * (180. / np.pi)
+            if plot_error:
+                phs_uncert = (
+                    (1. / (real_data ** 2 + imag_data ** 2)) *
+                    ((real_data * real_uncert - imag_data * imag_uncert))
+                ) * (180. / np.pi)
+                # Scale back the errorbars
+                error = phs_uncert
+        elif 'amplitude' in component:
+            comp_data = real_data + 1j * imag_data
+            plot_data = np.abs(comp_data)
+            if plot_error:
+                amp_uncert = ((1. / plot_data) *
+                              ((np.abs(real_data) * real_uncert) +
+                              (np.abs(imag_data) * imag_uncert))
+                              )
+                error = amp_uncert #[low_unsert, up_unsert]
+    else:
+        if plot_error:
+            freqs, locs, plot_data, std_data, floor_data = _extract_section_data(
+                data, sectDict, tensor, orientation, component, return_uncert=plot_error)
+            attr_uncert = std_data * np.abs(plot_data) + floor_data
+            error =  attr_uncert
+        else:
+            freqs, locs, plot_data = _extract_section_data(
+                data, sectDict, tensor, orientation, component, return_uncert=plot_error)
+    if plot_error:
+        return (freqs, locs, plot_data, error)
+    else:
+        return (freqs, locs, plot_data)
+
+
+def _get_map_data(
+    data, frequency, tensor, orientation, component,
+    plot_error=False):
+    """
+    Function for getting frequency map data
+    """
+
+    # Get the components
+    if component in ['app_res', 'phase', 'amplitude']:
+        real_tuple = _extract_frequency_data(data, frequency, tensor, orientation,
                                             'real', plot_error)
-        imag_tuple = _extract_frequency_data(data, frequency, orientation,
+        imag_tuple = _extract_frequency_data(data, frequency, tensor, orientation,
                                             'imag', plot_error)
         if plot_error:
             freqs, real_data, real_std, real_floor = real_tuple
@@ -702,22 +778,27 @@ def _get_map_data(data, frequency, orientation, component, plot_error=False):
 
         if plot_error:
             freqs, plot_data, std_data, floor_data = _extract_frequency_data(
-                data, frequency, orientation, component, return_uncert=error)
+                data, frequency, tensor, orientation, component, return_uncert=plot_error)
             attr_uncert = std_data * np.abs(plot_data) + floor_data
             errorbars = [attr_uncert, attr_uncert]
         else:
             freqs, plot_data = _extract_frequency_data(
-                data, frequency, orientation, component, return_uncert=error)
-    return (freqs, plot_data, errorbars)
+                data, frequency, tensor, orientation, component, return_uncert=plot_error)
+    if plot_error:
+        return (freqs, plot_data, errorbars)
+    else:
+        return (freqs, plot_data)
 
 
-def _get_station_data(data, location, orientation, component, plot_error=False):
+def _get_station_data(
+    data, location, tensor, orientation, component,
+    plot_error=False):
 
     # Get the components
     if component in ['app_res', 'phase', 'amplitude']:
-        real_tuple = _extract_location_data(data, location, orientation,
+        real_tuple = _extract_location_data(data, location, tensor, orientation,
                                             'real', plot_error)
-        imag_tuple = _extract_location_data(data, location, orientation,
+        imag_tuple = _extract_location_data(data, location, tensor, orientation,
                                             'imag', plot_error)
 
         if plot_error:
@@ -738,7 +819,7 @@ def _get_station_data(data, location, orientation, component, plot_error=False):
                     (2. / (mu_0 * omega(freqs))) *
                     (real_data * real_uncert + imag_data * imag_uncert)
                 )
-                errorbars = [res_uncert, res_uncert]
+                error = res_uncert
         elif 'phase' in component:
             plot_data = np.arctan2(imag_data, real_data) * (180. / np.pi)
             if plot_error:
@@ -747,7 +828,7 @@ def _get_station_data(data, location, orientation, component, plot_error=False):
                     ((real_data * real_uncert - imag_data * imag_uncert))
                 ) * (180. / np.pi)
                 # Scale back the errorbars
-                errorbars = [phs_uncert, phs_uncert]
+                error = phs_uncert
         elif 'amplitude' in component:
             comp_data = real_data + 1j * imag_data
             plot_data = np.abs(comp_data)
@@ -756,84 +837,103 @@ def _get_station_data(data, location, orientation, component, plot_error=False):
                               ((np.abs(real_data) * real_uncert) +
                               (np.abs(imag_data) * imag_uncert))
                               )
-                errorbars = [amp_uncert, amp_uncert] #[low_unsert, up_unsert]
+                error = amp_uncert #[low_unsert, up_unsert]
     else:
         if plot_error:
             freqs, plot_data, std_data, floor_data = _extract_location_data(
-                data, location, orientation, component, return_uncert=plot_error)
-            attr_uncert = std_data * np.abs(plot_data) + floor_data
-            errorbars = [attr_uncert, attr_uncert]
+                data, location, tensor, orientation, component, return_uncert=plot_error)
+            error = std_data * np.abs(plot_data) + floor_data
         else:
             freqs, plot_data = _extract_location_data(
-                data, location, orientation, component, return_uncert=plot_error)
+                data, location, tensor, orientation, component, return_uncert=plot_error)
     if plot_error:
-        return (freqs, plot_data, errorbars)
+        return (freqs, plot_data, attr_uncert)
     else:
         return (freqs, plot_data)
 
-def _get_plot_data(data, location, orientation, component):
 
-    if 'app_res' in component:
-        freqs, dat_r = _extract_location_data(
-            data, location, orientation, 'real')
-        freqs, dat_i = _extract_location_data(
-            data, location, orientation, 'imag')
-        dat = dat_r + 1j * dat_i
-        plot_data = 1. / (mu_0 * omega(freqs)) * np.abs(dat) ** 2
-    elif 'phase' in component:
-        freqs, dat_r = _extract_location_data(
-            data, location, orientation, 'real')
-        freqs, dat_i = _extract_location_data(
-            data, location, orientation, 'imag')
-        plot_data = np.arctan2(dat_i, dat_r) * (180. / np.pi)
-    elif 'amplitude' in component:
-        freqs, dat_r = _extract_location_data(
-            data, location, orientation, 'real')
-        freqs, dat_i = _extract_location_data(
-            data, location, orientation, 'imag')
-        dat_complex = dat_r + 1j * dat_i
-        plot_data = np.abs(dat_complex)
-    else:
-        freqs, plot_data = _extract_location_data(
-            data, location, orientation, component)
-    return (freqs, plot_data)
+def _get_plot_data(
+    data, location, tensor, orientation, component):
 
-def _extract_frequency_data(data, frequency,
-                            orientation, component, return_uncert=False):
+    return _get_station_data(data, location, tensor, orientation, component, plot_error=False)
+
+
+def _extract_frequency_data(
+    data, frequency, tensor, orientation, component,
+    return_uncert=False):
     """
     Function to extract data at given frequency
     """
 
     src = data.survey.getSrcByFreq(frequency)
-    rx_list = [rx for rx in src.rxList
-               if rx.orientation == orientation and rx.component == component]
-    # Check the number of the rx
-    if len(rx_list) == 1:
-        rx = rx_list[0]
-    elif len(rx_list) == 0:
-        # Should add a warning that the rx doesn't excist
+    rx = _get_rx(src, tensor, orientation, component)
+    if rx is None:
         if return_uncert:
-            # Returning all empty arrays
             return (np.array([]), np.array([]),
-                    np.array([]), np.array([]))
+                np.array([]), np.array([]))
         return (np.array([]), np.array([]))
-    else:
-        # Should be a more specifice Exeption
-        raise Exception(
-            'To many Receivers of the same type, orientation and component')
 
     loc_arr = rx.locs
     data_arr = data[src, rx]
     if return_uncert:
         std_arr = data.standard_deviation[src, rx]
         floor_arr = data.floor[src, rx]
-    if return_uncert:
         return (loc_arr, data_arr, std_arr, floor_arr)
     return (loc_arr, data_arr)
 
 
-def _extract_location_data(data, location,
-                           orientation, component, return_uncert=False):
+def _extract_section_data(
+    data, sectDict, tensor, orientation, component,
+    return_uncert=False):
+    """
+    Function to extract data at given section, given
+    sectDict {'x'|'y': coord_value}
+    """
+
+    freq_list = []
+    loc_list = []
+    data_list = []
+    std_list = []
+    floor_list = []
+    for src in data.survey.srcList:
+        rx = _get_rx(src, tensor, orientation, component)
+        if rx is None:
+            if return_uncert:
+                return (np.array([]), np.array([]),
+                        np.array([]), np.array([]), np.array([]))
+            return (np.array([]), np.array([]), np.array([]))
+
+        # Fix for the magnetic
+        if len(rx.locs.shape) == 3:
+            locs = rx.locs[:,:,0]
+        else:
+            locs = rx.locs
+        if 'x' in sectDict.keys():
+            ind_loc = np.sqrt(
+                (locs[:, 0] - np.array([sectDict['x']])) ** 2) < 1.
+        elif 'y' in sectDict.keys():
+            ind_loc = np.sqrt(
+                (locs[:, 1] - np.array([sectDict['y']])) ** 2) < 1.
+
+        if np.any(ind_loc):
+            freq_list.append(np.ones_like(ind_loc, float) * src.freq)
+            data_list.append(data[src, rx][ind_loc])
+            loc_list.append(locs[ind_loc, :])
+
+            if return_uncert:
+                std_list.append(data.standard_deviation[src, rx][ind_loc])
+                floor_list.append(data.floor[src, rx][ind_loc])
+    if return_uncert:
+        return (np.concatenate(freq_list), np.concatenate(loc_list),
+            np.concatenate(data_list), np.concatenate(std_list),
+            np.concatenate(floor_list))
+    return (np.array(freq_list), np.concatenate(loc_list),
+        np.concatenate(data_list))
+
+
+def _extract_location_data(
+    data, location, tensor, orientation, component,
+    return_uncert=False):
     """
     Function to extract data at given location
     """
@@ -842,21 +942,17 @@ def _extract_location_data(data, location,
     std_list = []
     floor_list = []
     for src in data.survey.srcList:
-        rx_list = [rx for rx in src.rxList
-              if rx.orientation == orientation and rx.component == component]
-        if len(rx_list) == 0:
+        rx = _get_rx(src, tensor, orientation, component)
+        if rx is None:
             if return_uncert:
                 return (np.array([]), np.array([]),
-                        np.array([]), np.array([]))
+                    np.array([]), np.array([]))
             return (np.array([]), np.array([]))
-        else:
-            rx = rx_list[0]
-
-        ind_loc = np.sqrt(np.sum((rx.locs[:, :2] - location) ** 2, axis=1)) < 0.1
+        ind_loc = np.sqrt(
+            np.sum((rx.locs[:, :2] - location) ** 2, axis=1)) < 0.1
         if np.any(ind_loc):
             freq_list.append(src.freq)
             data_list.append(data[src, rx][ind_loc])
-
 
             if return_uncert:
                 std_list.append(data.standard_deviation[src, rx][ind_loc])
@@ -878,3 +974,26 @@ def _unique_rows(array):
     return unique_array.view(
         array.dtype).reshape((unique_array.shape[0], array.shape[1]))
 
+def _get_rx(src, tensor_type, orientation, component):
+
+    if 'Z' in tensor_type:
+        class_type = Point_impedance3D
+    elif 'T' in tensor_type:
+        class_type = Point_tipper3D
+    elif 'M' in tensor_type:
+        class_type = Point_horizontalmagvar3D
+    else:
+        raise IOError('{} is a illegal tensor type. Has to be [Z,T,M]'.format(tensor_type))
+    rx_list = [rx for rx in src.rxList
+               if isinstance(rx, class_type) and
+               rx.orientation == orientation and
+               rx.component == component]
+    # Check the number of the rx
+    if len(rx_list) == 1:
+        return rx_list[0]
+    elif len(rx_list) == 0:
+        return None
+    else:
+        # Should be a more specifice Exeption
+        raise Exception(
+            'To many Receivers of the same type, orientation and component')
