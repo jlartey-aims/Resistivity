@@ -160,6 +160,81 @@ class tip_amp_station_plot(Base_DataNSEM_plots):
                                     ax=axes[1], errorbars=False,
                                     comp_plot_dict=dd_kwargs)
 
+class tip_complex_station_plot(Base_DataNSEM_plots):
+    """
+    Class for setting up 2 axes figure with:
+        tipper real | tipper imag
+        setup.
+    """
+
+    def __init__(self):
+        super(tip_complex_station_plot, self).__init__()
+
+
+    def setup(self):
+        """
+        Setup a station data plot figure.
+        """
+        self.fig, axes_temp = plt.subplots(1, 2, sharex=True)
+        self.axes = axes_temp.ravel().tolist()
+        self.fig.set_size_inches((13.5, 4.0))
+
+        for ax in self.axes:
+            ax.set_xscale('log')
+
+        self.axes[0].invert_xaxis()
+        self.axes[0].set_yscale('log')
+        # Set labels
+        self.axes[0].set_xlabel('Frequency [Hz]')
+        self.axes[1].set_xlabel('Frequency [Hz]')
+        self.axes[0].set_ylabel('Tipper real component')
+        self.axes[1].set_ylabel('Tipper imaginary component')
+
+    def draw(self, data_list, location):
+        """
+        Function to draw on the axes
+
+        :param data_list: List of NSEM data objects to plot.
+            Has to be of length >= 1. First item is treat as a
+            observed data (Hast to have standard_deviation and floor)
+            assigned) and the others are plotted on top.
+        :param location: Location of the station to plot
+        """
+
+        axes = self.axes
+
+        # Set keyword arguments
+        st_kwargs = {'marker': '_', 'ls': 'None'}
+        eb_kwargs = {'ls': 'None'}
+        # Pop the data from the list
+        data = data_list[0]
+
+        # Apparent resistivity
+        data.plot_tip_amp(location, ['zx', 'zy'],
+                          ax=axes[0], errorbars=True)
+        data.station_errorbars(
+            location, 'T', ['zx', 'zy'], 'real',
+            ax=axes[0], **st_kwargs)
+        # Apparent phase
+        data.station_errorbars(
+            location, 'T', ['zx', 'zy'], 'imag',
+            ax=axes[1], **st_kwargs)
+
+        # Plot the additional data
+        for other_data in data_list[1::]:
+            # Need add symbol generation
+            dd_kwargs = {'zx': {'marker': '.', 'ls': '--'},
+                         'zy': {'marker': '.', 'ls': '--'}}
+
+            # Apparent resistivity
+            other_data.station_component(
+                location, 'T', ['zx', 'zy'], 'real',
+                ax=axes[0], **st_kwargs)
+
+            # Apparent phase
+            other_data.station_component(
+                location, 'T', ['zx', 'zy'], 'imag',
+                ax=axes[1], **st_kwargs)
 
 class app_res_phs_imp_station_plot(Base_DataNSEM_plots):
     """
@@ -282,16 +357,16 @@ class DataNSEM_plot_functions(object):
         pass
 
     def plot_app_res(
-        self, location, components=['xy', 'yx'], ax=None,
+        self, location, orientations=['xy', 'yx'], ax=None,
         errorbars=False, comp_plot_dict=DEFAULT_COMP_DICT):
         """
         Plot apperent resistivity curves at a given location
 
         :param location: Location of the data point
         :type location: :class:`axes <matplotlib.axes>`
-        :param components: List of the components to plot.
+        :param orientations: List of the orientations to plot.
             Default = ['xy','yx']
-        :type components: list
+        :type orientations: list
         :param ax: The ax object to add the,  , Default: None
         :type ax: :class:`axes <matplotlib.axes>`
         :param errorbars: Controls if errorbars are plotted
@@ -312,7 +387,7 @@ class DataNSEM_plot_functions(object):
         else:
             fig = ax.get_figure()
 
-        for comp in components:
+        for comp in orientations:
             st_kwargs = _validate_kwargs(
                 comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
@@ -330,16 +405,16 @@ class DataNSEM_plot_functions(object):
         return ax
 
     def plot_app_phs(
-        self, location, components=['xy', 'yx'], ax=None,
+        self, location, orientations=['xy', 'yx'], ax=None,
         errorbars=False, comp_plot_dict=DEFAULT_COMP_DICT):
         """
         Plot apperent resistivity curves at a given location
 
         :param location: Location of the data point
         :type location: :class:`axes <matplotlib.axes>`
-        :param components: List of the components to plot.
+        :param orientations: List of the orientations to plot.
             Default = ['xy','yx']
-        :type components: list
+        :type orientations: list
         :param ax: The ax object to add the,  , Default: None
         :type ax: :class:`axes <matplotlib.axes>`
         :param errorbars: Controls if errorbars are plotted
@@ -358,7 +433,7 @@ class DataNSEM_plot_functions(object):
         else:
             fig = ax.get_figure()
 
-        for comp in components:
+        for comp in orientations:
             st_kwargs = _validate_kwargs(
                 comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
@@ -376,16 +451,16 @@ class DataNSEM_plot_functions(object):
         return ax
 
     def plot_imp_amp(
-        self, location, components=['xy', 'yx'], ax=None,
+        self, location, orientations=['xy', 'yx'], ax=None,
         errorbars=False, comp_plot_dict=DEFAULT_COMP_DICT):
         """
         Plot impedance amplitude curves at a given location
 
         :param location: Location of the data point
         :type location: :class:`axes <matplotlib.axes>`
-        :param components: List of the components to plot.
+        :param orientations: List of the orientations to plot.
             Default = ['xy','yx']
-        :type components: list
+        :type orientations: list
         :param ax: The ax object to add the,  , Default: None
         :type ax: :class:`axes <matplotlib.axes>`
         :param errorbars: Controls if errorbars are plotted
@@ -405,7 +480,7 @@ class DataNSEM_plot_functions(object):
         else:
             fig = ax.get_figure()
 
-        for comp in components:
+        for comp in orientations:
             st_kwargs = _validate_kwargs(
                 comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
@@ -423,16 +498,16 @@ class DataNSEM_plot_functions(object):
         return ax
 
     def plot_tip_amp(
-        self, location, components=['zx', 'zy'], ax=None,
+        self, location, orientations=['zx', 'zy'], ax=None,
         errorbars=False, comp_plot_dict=DEFAULT_COMP_DICT):
         """
         Plot tipper amplitude curves at a given location
 
         :param location: Location of the data point
         :type location: :class:`axes <matplotlib.axes>`
-        :param components: List of the components to plot.
+        :param orientations: List of the orientations to plot.
             Default = ['xy','yx']
-        :type components: list
+        :type orientations: list
         :param ax: The ax object to add the,  , Default: None
         :type ax: :class:`axes <matplotlib.axes>`
         :param errorbars: Controls if errorbars are plotted
@@ -452,7 +527,7 @@ class DataNSEM_plot_functions(object):
         else:
             fig = ax.get_figure()
 
-        for comp in components:
+        for comp in orientations:
             st_kwargs = _validate_kwargs(
                 comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
 
@@ -470,7 +545,7 @@ class DataNSEM_plot_functions(object):
         return ax
 
     def map_iso_frequency(
-        self, freq, tensor, component='xy', ax=None,
+        self, freq, tensor, orientation, component='xy', ax=None,
         plot_error=False, **plot_kwargs):
         """
         Function that maps the data at an certain frequency.
@@ -483,14 +558,14 @@ class DataNSEM_plot_functions(object):
         if ax is None:
             fig, ax = plt.subplots(1, 1)
             ax.invert_xaxis()
-            ax.set_yscale('log')
-            ax.set_xlabel('Distance')
-            ax.set_ylabel('Frequency [Hz]')
+            ax.set_xlabel('Distance [Easting]')
+            ax.set_ylabel('Distance [Northing]')
         else:
             fig = ax.get_figure()
 
-        self.frequency_map(freq, tensor, component=component, ax=ax,
-                          plot_error=plot_error, **plot_kwargs)
+        self.frequency_map(
+            freq, tensor, orientation=orientation, component=component,
+            ax=ax, plot_error=plot_error, **plot_kwargs)
 
     def map_data_locations(self, ax=None, **plot_kwargs):
         """
@@ -530,7 +605,6 @@ class DataNSEM_plot_functions(object):
                    **plot_kwargs)
 
         return (fig, ax)
-
 
     def station_component(
         self, location, tensor, orientation, component,
@@ -607,13 +681,15 @@ class DataNSEM_plot_functions(object):
             fig = ax.get_figure()
 
         # Plot the data
-        locs, plot_data, errorbars = _get_map_data(
+        info_set = _get_map_data(
             self, frequency, tensor, orientation, component, plot_error)
         if plot_error:
-            plot_obj = plt.tricontourf(locs, errorbars[0],
+            locs, plot_data, errorbars = info_set
+            plot_obj = plt.tricontourf(locs[:,0], locs[:,1], errorbars[0],
                                        **plot_kwargs)
         else:
-            plot_obj = plt.tricontourf(locs, plot_data,
+            locs, plot_data = info_set
+            plot_obj = plt.tricontourf(locs[:,0], locs[:,1], plot_data,
                                        **plot_kwargs)
         return (fig, ax, plot_obj)
 
@@ -650,10 +726,10 @@ class DataNSEM_plot_functions(object):
         # Make the plot points
         xP, yP = loc_arr, freqs
         if plot_error:
-            plot_obj = plt.tricontourf(
+            plot_obj = ax.tricontourf(
                 xP.reshape(-1,), yP.reshape(-1,), errorbars[0], **plot_kwargs)
         else:
-            plot_obj = plt.tricontourf(
+            plot_obj = ax.tricontourf(
                 xP.reshape(-1,), yP.reshape(-1,), plot_data, **plot_kwargs)
         return (fig, ax, plot_obj)
 
@@ -667,10 +743,10 @@ def _get_section_data(
 
     # Get the components
     if component in ['app_res', 'phase', 'amplitude']:
-        real_tuple = _extract_section_data(data, sectDict, tensor,
-            orientation, 'real', plot_error)
-        imag_tuple = _extract_section_data(data, sectDict, tensor,
-            orientation, 'imag', plot_error)
+        real_tuple = _extract_section_data(
+            data, sectDict, tensor, orientation, 'real', plot_error)
+        imag_tuple = _extract_section_data(
+            data, sectDict, tensor, orientation, 'imag', plot_error)
         if plot_error:
             freqs, locs, real_data, real_std, real_floor = real_tuple
             freqs, locs, imag_data, imag_std, imag_floor = imag_tuple
@@ -678,8 +754,8 @@ def _get_section_data(
             real_uncert = real_std * np.abs(real_data) + real_floor
             imag_uncert = imag_std * np.abs(imag_data) + imag_floor
         else:
-            freqs, real_data = real_tuple
-            freqs, imag_data = imag_tuple
+            freqs, locs, real_data = real_tuple
+            freqs, locs, imag_data = imag_tuple
 
         if 'app_res' in component:
             comp_data = real_data + 1j * imag_data
@@ -755,7 +831,7 @@ def _get_map_data(
                     (2. / (mu_0 * omega(freqs))) *
                     (real_data * real_uncert + imag_data * imag_uncert)
                 )
-                errorbars = [res_uncert, res_uncert]
+                error = res_uncert
         elif 'phase' in component:
             plot_data = np.arctan2(imag_data, real_data) * (180. / np.pi)
             if plot_error:
@@ -764,7 +840,7 @@ def _get_map_data(
                     ((real_data * real_uncert - imag_data * imag_uncert))
                 ) * (180. / np.pi)
                 # Scale back the errorbars
-                errorbars = [phs_uncert, phs_uncert]
+                error = phs_uncert
         elif 'amplitude' in component:
             comp_data = real_data + 1j * imag_data
             plot_data = np.abs(comp_data)
@@ -773,19 +849,19 @@ def _get_map_data(
                               ((np.abs(real_data) * real_uncert) +
                               (np.abs(imag_data) * imag_uncert))
                               )
-                errorbars = [amp_uncert, amp_uncert] #[low_unsert, up_unsert]
+                error =  amp_uncert #[low_unsert, up_unsert]
     else:
 
         if plot_error:
             freqs, plot_data, std_data, floor_data = _extract_frequency_data(
                 data, frequency, tensor, orientation, component, return_uncert=plot_error)
             attr_uncert = std_data * np.abs(plot_data) + floor_data
-            errorbars = [attr_uncert, attr_uncert]
+            error =  attr_uncert
         else:
             freqs, plot_data = _extract_frequency_data(
                 data, frequency, tensor, orientation, component, return_uncert=plot_error)
     if plot_error:
-        return (freqs, plot_data, errorbars)
+        return (freqs, plot_data, error)
     else:
         return (freqs, plot_data)
 
@@ -865,7 +941,7 @@ def _extract_frequency_data(
     Function to extract data at given frequency
     """
 
-    src = data.survey.getSrcByFreq(frequency)
+    src = data.survey.getSrcByFreq(frequency)[0]
     rx = _get_rx(src, tensor, orientation, component)
     if rx is None:
         if return_uncert:
@@ -897,37 +973,39 @@ def _extract_section_data(
     floor_list = []
     for src in data.survey.srcList:
         rx = _get_rx(src, tensor, orientation, component)
-        if rx is None:
-            if return_uncert:
-                return (np.array([]), np.array([]),
-                        np.array([]), np.array([]), np.array([]))
-            return (np.array([]), np.array([]), np.array([]))
+        if rx is not None:
+            # Fix for the magnetic
+            if len(rx.locs.shape) == 3:
+                locs = rx.locs[:,:,0]
+            else:
+                locs = rx.locs
+            if 'x' in sectDict.keys():
+                ind_loc = np.sqrt(
+                    (locs[:, 0] - np.array([sectDict['x']])) ** 2) < 1.
+            elif 'y' in sectDict.keys():
+                ind_loc = np.sqrt(
+                    (locs[:, 1] - np.array([sectDict['y']])) ** 2) < 1.
 
-        # Fix for the magnetic
-        if len(rx.locs.shape) == 3:
-            locs = rx.locs[:,:,0]
-        else:
-            locs = rx.locs
-        if 'x' in sectDict.keys():
-            ind_loc = np.sqrt(
-                (locs[:, 0] - np.array([sectDict['x']])) ** 2) < 1.
-        elif 'y' in sectDict.keys():
-            ind_loc = np.sqrt(
-                (locs[:, 1] - np.array([sectDict['y']])) ** 2) < 1.
+            if np.any(ind_loc):
+                freq_list.append(np.ones_like(ind_loc, float) * src.freq)
+                data_list.append(data[src, rx][ind_loc])
+                loc_list.append(locs[ind_loc, :])
 
-        if np.any(ind_loc):
-            freq_list.append(np.ones_like(ind_loc, float) * src.freq)
-            data_list.append(data[src, rx][ind_loc])
-            loc_list.append(locs[ind_loc, :])
+                if return_uncert:
+                    std_list.append(data.standard_deviation[src, rx][ind_loc])
+                    floor_list.append(data.floor[src, rx][ind_loc])
 
-            if return_uncert:
-                std_list.append(data.standard_deviation[src, rx][ind_loc])
-                floor_list.append(data.floor[src, rx][ind_loc])
+    if len(data_list) == 0:
+        if return_uncert:
+            return (np.array([]), np.array([]),
+                    np.array([]), np.array([]), np.array([]))
+        return (np.array([]), np.array([]), np.array([]))
+
     if return_uncert:
         return (np.concatenate(freq_list), np.concatenate(loc_list),
             np.concatenate(data_list), np.concatenate(std_list),
             np.concatenate(floor_list))
-    return (np.array(freq_list), np.concatenate(loc_list),
+    return (np.concatenate(freq_list), np.concatenate(loc_list),
         np.concatenate(data_list))
 
 
