@@ -633,7 +633,6 @@ class DataNSEM_plot_functions(object):
 
         return (fig, ax, plot_obj)
 
-
     def station_errorbars(
         self, location, tensor, orientation, component,
         ax=None, **plot_kwargs):
@@ -814,14 +813,14 @@ def _get_map_data(
         imag_tuple = _extract_frequency_data(data, frequency, tensor, orientation,
                                             'imag', plot_error)
         if plot_error:
-            freqs, real_data, real_std, real_floor = real_tuple
-            freqs, imag_data, imag_std, imag_floor = imag_tuple
+            freqs, locs, real_data, real_std, real_floor = real_tuple
+            freqs, locs, imag_data, imag_std, imag_floor = imag_tuple
             # Add up the uncertainties
             real_uncert = real_std * np.abs(real_data) + real_floor
             imag_uncert = imag_std * np.abs(imag_data) + imag_floor
         else:
-            freqs, real_data = real_tuple
-            freqs, imag_data = imag_tuple
+            freqs, locs, real_data = real_tuple
+            freqs, locs, imag_data = imag_tuple
 
         if 'app_res' in component:
             comp_data = real_data + 1j * imag_data
@@ -853,17 +852,17 @@ def _get_map_data(
     else:
 
         if plot_error:
-            freqs, plot_data, std_data, floor_data = _extract_frequency_data(
+            freqs, locs, plot_data, std_data, floor_data = _extract_frequency_data(
                 data, frequency, tensor, orientation, component, return_uncert=plot_error)
             attr_uncert = std_data * np.abs(plot_data) + floor_data
             error =  attr_uncert
         else:
-            freqs, plot_data = _extract_frequency_data(
+            freqs, locs, plot_data = _extract_frequency_data(
                 data, frequency, tensor, orientation, component, return_uncert=plot_error)
     if plot_error:
-        return (freqs, plot_data, error)
+        return (locs, plot_data, error)
     else:
-        return (freqs, plot_data)
+        return (locs, plot_data)
 
 
 def _get_station_data(
@@ -945,17 +944,17 @@ def _extract_frequency_data(
     rx = _get_rx(src, tensor, orientation, component)
     if rx is None:
         if return_uncert:
-            return (np.array([]), np.array([]),
+            return (np.array([]), np.array([]), np.array([]),
                 np.array([]), np.array([]))
-        return (np.array([]), np.array([]))
+        return (np.array([]), np.array([]), np.array([]))
 
     loc_arr = rx.locs
     data_arr = data[src, rx]
     if return_uncert:
         std_arr = data.standard_deviation[src, rx]
         floor_arr = data.floor[src, rx]
-        return (loc_arr, data_arr, std_arr, floor_arr)
-    return (loc_arr, data_arr)
+        return (frequency, loc_arr, data_arr, std_arr, floor_arr)
+    return (frequency, loc_arr, data_arr)
 
 
 def _extract_section_data(
@@ -987,7 +986,7 @@ def _extract_section_data(
                     (locs[:, 1] - np.array([sectDict['y']])) ** 2) < 1.
 
             if np.any(ind_loc):
-                freq_list.append(np.ones_like(ind_loc, float) * src.freq)
+                freq_list.append(np.ones((np.sum(ind_loc),), float) * src.freq)
                 data_list.append(data[src, rx][ind_loc])
                 loc_list.append(locs[ind_loc, :])
 
