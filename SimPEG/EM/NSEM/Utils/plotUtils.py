@@ -592,7 +592,8 @@ class DataNSEM_plot_functions(object):
                 plot_kwargs[key] = val
         # Get unique locations
         unique_locations = _unique_rows(np.concatenate(
-            [rx.locs for src in self.survey.srcList for rx in src.rxList])
+            [rx.locs if len(rx.locs.shape) == 2 else rx.locs[:,:,0]
+            for src in self.survey.srcList for rx in src.rxList])
         )
         # Make the figure and the axes
         if ax is None:
@@ -922,7 +923,7 @@ def _get_station_data(
             freqs, plot_data = _extract_location_data(
                 data, location, tensor, orientation, component, return_uncert=plot_error)
     if plot_error:
-        return (freqs, plot_data, attr_uncert)
+        return (freqs, plot_data, error)
     else:
         return (freqs, plot_data)
 
