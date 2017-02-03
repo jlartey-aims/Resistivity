@@ -10,7 +10,9 @@ from scipy import interpolate as sciint
 
 import SimPEG as simpeg
 from SimPEG.EM.NSEM.SurveyNSEM import Survey, Data
-from SimPEG.EM.NSEM.RxNSEM import Point_impedance1D, Point_impedance3D, Point_tipper3D
+from SimPEG.EM.NSEM.RxNSEM import (
+    Point_impedance1D, Point_impedance3D,
+    Point_tipper3D, Point_horizontalmagvar3D)
 from SimPEG.EM.NSEM.SrcNSEM import Planewave_xy_1Dprimary
 from SimPEG.EM.NSEM.Utils import MT1Danalytic, plotDataTypes as pDt
 
@@ -71,6 +73,8 @@ def extract_data_info(NSEMdata):
                 rxTL.extend( (('z' + rx.orientation +' ')*rx.nD).split())
             if isinstance(rx, Point_tipper3D):
                 rxTL.extend( (('t' + rx.orientation +' ')*rx.nD).split())
+            if isinstance(rx, Point_horizontalmagvar3D):
+                rxTL.extend( (('m' + rx.orientation +' ')*rx.nD).split())
     return np.concatenate(dL), np.concatenate(freqL), np.array(rxTL)
 
 
