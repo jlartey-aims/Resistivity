@@ -77,7 +77,78 @@ def extract_data_info(NSEMdata):
                 rxTL.extend( (('m' + rx.orientation +' ')*rx.nD).split())
     return np.concatenate(dL), np.concatenate(freqL), np.array(rxTL)
 
+def reduce_data(NSEMdata, locations, freqs='All', rxs='All'):
+    """
+    Function that selects locations from all the receivers in the survey
+    (uses the numerator location as a reference). Also gives the option
+    of selecting frequencies and receiver.
 
+    """
+
+    # Initiate new objects
+    new_srcList = []
+    data_list = []
+
+    # Sort out input frequencies
+    if freqs is 'All':
+        frequencies = NSEMdata.survey.freqs
+    elif isinstance(freqs,np.ndarray):
+        frequencies = freqs
+    elif isinstance(freqs, list):
+        frequencies = np.array(freqs)
+    else:
+        raise IOError('Incorrect input type for freqs. \n' +
+                     'Can be \'All\'; ndarray or a list')
+    # Sort out input rxs
+    if rxs is 'All':
+        rx_comp = True
+    elif isinstance(rxs,list):
+        rx_comp = []
+        for rxT in rxs:
+            if'z' in rxT[0]:
+                rxtype = NSEM.Rx.Point_impedance3D
+            elif 't' in rxT[0]:
+                rxtype = NSEM.Rx.Point_tipper3D
+            elif 'm' in rxT[0]:
+                rxtype = NSEM.Rx.Point_horizontalmagvar3D
+            else:
+                raise IOError('Unknown rx type string')
+            orient = rxT[1:3]
+            rx_comp.append((rxtype, orient))
+
+    else:
+        raise IOError('Incorrect input type for rxs. \n' +
+                     'Can be \'All\' or a list')
+
+
+    # Filter the data
+    for src in NSEMdata.survey.srcList:
+        if src.freq in frequencies:
+            new_rxList = []
+            for rx in src.rxList:
+                if rx_comp is True or np.any([(isinstance(rx,ct) and rx.orientation in co) for (ct,co) in rx_comp]):
+                    if len(rx.locs.shape) == 3:
+                        ind_loc = np.sum(
+                            np.concatenate(
+                                [(np.sqrt(np.sum((rx.locs[:, :, 0] - location) ** 2, axis=1)) < 0.1).reshape(-1,1)
+                                 for location in locations],
+                                axis=1), axis=1, dtype=bool)
+                        new_locs = rx.locs[ind_loc,:,:]
+                    else:
+                        ind_loc = np.sum(
+                            np.concatenate(
+                                [(np.sqrt(np.sum((rx.locs[:, :] - location) ** 2, axis=1)) < 0.1).reshape(-1,1)
+                                 for location in locations],
+                                axis=1), axis=1, dtype=bool)
+                        new_locs = rx.locs[ind_loc,:]
+                    new_rx = type(rx)
+                    new_rxList.append(new_rx(new_locs, rx.orientation, rx.component))
+                    data_list.append(NSEMdata[src, rx][ind_loc])
+            new_src = type(src)
+            new_srcList.append(new_src(new_rxList, src.freq))
+
+    survey = NSEM.Survey(new_srcList)
+    return NSEM.Data(survey, np.concatenate(data_list))
 def convert3Dto1Dobject(NSEMdata, rxType3D='yx'):
 
     # Find the unique locations
