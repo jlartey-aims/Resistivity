@@ -8,6 +8,7 @@ import properties
 import numpy as np
 import scipy.sparse as sp
 import gc
+import logging
 
 
 class BaseInvProblem(Props.BaseSimPEG):
@@ -117,7 +118,8 @@ class BaseInvProblem(Props.BaseSimPEG):
     def evalFunction(self, m, return_g=True, return_H=True):
         """evalFunction(m, return_g=True, return_H=True)
         """
-        logger = self.dmisfit.prob.logger
+        logger = logging.getLogger(
+            'SimPEG.InvProblem.BaseInversionProblem.evalFunction')
         logger.info('Starting calculations in invProb.evalFunction')
         self.model = m
         gc.collect()

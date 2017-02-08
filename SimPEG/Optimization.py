@@ -2,6 +2,7 @@ from __future__ import print_function
 from . import Utils
 import numpy as np
 import scipy.sparse as sp
+import logging
 from .Utils.SolverUtils import *
 norm = np.linalg.norm
 
@@ -173,12 +174,17 @@ class Minimize(object):
             finish()
             return xc
         """
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.minimize')
+        logger.info('Starting to minimize')
+
         self.evalFunction = evalFunction
         self.startup(x0)
         self.printInit()
-        print('x0 has any nan: {:b}'.format(np.any(np.isnan(x0))))
         while True:
+            logger.info('Starting minimization iteration')
             self.doStartIteration()
+            logger.info('Evaluating fields, gradient and Hessian')
             self.f, self.g, self.H = evalFunction(self.xc, return_g=True, return_H=True)
             self.printIter()
             if self.stoppingCriteria(): break
@@ -187,6 +193,7 @@ class Minimize(object):
             p = self.scaleSearchDirection(self.searchDirection)
             xt, passLS = self.modifySearchDirection(p)
             if not passLS:
+                logger.debug('Modifing search direction')
                 xt, caught = self.modifySearchDirectionBreak(p)
                 if not caught: return self.xc
             self.doEndIteration(xt)
@@ -336,6 +343,9 @@ class Minimize(object):
             :rtype: numpy.ndarray
             :return: p, Search Direction
         """
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.findSearchDirection')
+        logger.debug('Find search direction')
         return -self.g
 
     @Utils.count
@@ -350,7 +360,9 @@ class Minimize(object):
             :rtype: numpy.ndarray
             :return: p, Scaled Search Direction
         """
-
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.scaleSearchDirection')
+        logger.debug('Scaling search direction')
         if self.maxStep < np.abs(p.max()):
             p = self.maxStep*p/np.abs(p.max())
         return p
@@ -378,8 +390,12 @@ class Minimize(object):
             :return: (xt, passLS) numpy.ndarray, bool
         """
         # Projected Armijo linesearch
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.modifySearchDirection')
+        logger.debug('Modifing search direction')
         self._LS_t = 1
         self.iterLS = 0
+        logger.debug('Starting linesearch')
         while self.iterLS < self.maxIterLS:
             self._LS_xt      = self.projection(self.xc + self._LS_t*p)
             self._LS_ft      = self.evalFunction(self._LS_xt, return_g=False, return_H=False)
@@ -779,6 +795,11 @@ class InexactGaussNewton(BFGS, Minimize, Remember):
 
     @Utils.timeIt
     def findSearchDirection(self):
+        logger = logging.getLogger(
+            'SimPEG.Optimization.InexactGaussNewton.findSearchDirection')
+
+        logger.info('Starting calcualtions of search direction')
+
         Hinv = SolverICG(self.H, M=self.approxHinv, tol=self.tolCG, maxiter=self.maxIterCG)
         p = Hinv * (-self.g)
         return p

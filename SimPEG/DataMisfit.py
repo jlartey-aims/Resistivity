@@ -1,7 +1,10 @@
 from __future__ import print_function
 import numpy as np
+import logging
+
 from SimPEG import Utils
 from SimPEG import Survey
+
 
 
 class BaseDataMisfit(object):
@@ -111,7 +114,9 @@ class l2_DataMisfit(BaseDataMisfit):
     @Utils.timeIt
     def eval(self, m, f=None):
         "eval(m, f=None)"
-        self.prob.logger.debug('DataMisfit.eval starting')
+        # Set the logger
+        logger = logging.getLogger(__name__)
+        logger.debug('DataMisfit.eval starting')
         if f is None: f = self.prob.fields(m)
         R = self.Wd * self.survey.residual(m, f)
         return 0.5*np.vdot(R, R)
@@ -119,13 +124,16 @@ class l2_DataMisfit(BaseDataMisfit):
     @Utils.timeIt
     def evalDeriv(self, m, f=None):
         "evalDeriv(m, f=None)"
-        self.prob.logger.debug('DataMisfit.evalDeriv starting')
+        logger = logging.getLogger(__name__)
+
+        logger.debug('DataMisfit.evalDeriv starting')
         if f is None: f = self.prob.fields(m)
         return self.prob.Jtvec(m, self.Wd * (self.Wd * self.survey.residual(m, f=f)), f=f)
 
     @Utils.timeIt
     def eval2Deriv(self, m, v, f=None):
         "eval2Deriv(m, v, f=None)"
-        self.prob.logger.debug('DataMisfit.eval2Deriv starting')
+        logger = logging.getLogger(__name__)
+        logger.debug('DataMisfit.eval2Deriv starting')
         if f is None: f = self.prob.fields(m)
         return self.prob.Jtvec_approx(m, self.Wd * (self.Wd * self.prob.Jvec_approx(m, v, f=f)), f=f)
