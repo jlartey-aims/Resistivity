@@ -72,23 +72,9 @@ class BaseNSEMProblem(BaseFDEMProblem):
             logger.debug('Factoring Ainv')
             Ainv = self.Solver(A, **self.solverOpts)
 
-            for src in self.survey.getSrcByFreq(freq):
-                logger.debug('Evaluating derivates')
-                # We need fDeriv_m = df/du*du/dm + df/dm
-                # Construct du/dm, it requires a solve
-                # NOTE: need to account for the 2 polarizations in the derivatives.
-                u_src = f[src,:] # u should be a vector by definition. Need to fix this...
-                # dA_dm and dRHS_dm should be of size nE,2, so that we can multiply by Ainv.
-                # The 2 columns are each of the polarizations.
-                dA_dm_v = self.getADeriv(freq, u_src, v) # Size: nE,2 (u_px,u_py) in the columns.
-                dRHS_dm_v = self.getRHSDeriv(freq, v) # Size: nE,2 (u_px,u_py) in the columns.
-                # Calculate du/dm*v
-                du_dm_v = Ainv * ( - dA_dm_v + dRHS_dm_v)
-                # Calculate the projection derivatives
-                for rx in src.rxList:
-                    # Calculate dP/du*du/dm*v
-                    logger.debug('Evaluate rx derivative')
-                    Jv[src, rx] = rx.evalDeriv(src, self.mesh, f, mkvc(du_dm_v)) # wrt uPDeriv_u(mkvc(du_dm))
+            # Calculate
+            Jv = self._Jvec_atFreq(Ainv, freq, v, f, Jv)
+            # Remove the factor from memory
             Ainv.clean()
             logger.debug(
                 'Ran for {:f} seconds'.format(time.time()-startTime)
@@ -96,6 +82,37 @@ class BaseNSEMProblem(BaseFDEMProblem):
         # Return the vectorized sensitivities
         logger.info('Calculation of Jvec - completed')
         return mkvc(Jv)
+
+    def _Jvec_atFreq(self, Ainv, freq, v, f, Jv):
+        """
+        Function to calculate the Jvec at a given frequency
+
+        """
+        logger = logging.getLogger(
+            'SimPEG.EM.NSEM.ProblemNSEM.BaseProblem._Jvec_atFreq')
+
+        for src in self.survey.getSrcByFreq(freq):
+            logger.debug('Evaluating derivates')
+            # We need fDeriv_m = df/du*du/dm + df/dm
+            # Construct du/dm, it requires a solve
+            # NOTE: need to account for the 2 polarizations in the derivatives.
+            # We need fDeriv_m = df/du*du/dm + df/dm
+            # Construct du/dm, it requires a solve
+            # NOTE: need to account for the 2 polarizations in the derivatives.
+            u_src = f[src,:] # u should be a vector by definition. Need to fix this...
+            # dA_dm and dRHS_dm should be of size nE,2, so that we can multiply by Ainv.
+            # The 2 columns are each of the polarizations.
+            dA_dm_v = self.getADeriv(freq, u_src, v) # Size: nE,2 (u_px,u_py) in the columns.
+            dRHS_dm_v = self.getRHSDeriv(freq, v) # Size: nE,2 (u_px,u_py) in the columns.
+            # Calculate du/dm*v
+            du_dm_v = Ainv * ( - dA_dm_v + dRHS_dm_v)
+            # Calculate the projection derivatives
+            for rx in src.rxList:
+                # Calculate dP/du*du/dm*v
+                logger.debug('Evaluate rx derivative')
+                Jv[src, rx] = rx.evalDeriv(src, self.mesh, f, mkvc(du_dm_v)) # wrt uPDeriv_u(mkvc(du_dm))
+
+        return Jv
 
     def Jtvec(self, m, v, f=None):
         """
@@ -129,31 +146,7 @@ class BaseNSEMProblem(BaseFDEMProblem):
             logger.debug('Factoring Atinv')
             ATinv = self.Solver(AT, **self.solverOpts)
 
-            for src in self.survey.getSrcByFreq(freq):
-                # u_src needs to have both polarizations
-                u_src = f[src, :]
-
-                for rx in src.rxList:
-                    # Get the adjoint evalDeriv
-                    # PTv needs to be nE,2
-                    logger.debug('Evaluating rx dervivative')
-                    PTv = rx.evalDeriv(src, self.mesh, f, mkvc(v[src, rx]), adjoint=True) # wrt f, need possibility wrt m
-                    # Get the
-                    logger.debug('Evaluate other derivatives')
-                    dA_duIT = mkvc(ATinv * PTv) # Force (nU,) shape
-                    dA_dmT = self.getADeriv(freq, u_src, dA_duIT, adjoint=True)
-                    dRHS_dmT = self.getRHSDeriv(freq, dA_duIT, adjoint=True)
-                    # Make du_dmT
-                    du_dmT = -dA_dmT + dRHS_dmT
-                    # Select the correct component
-                    # du_dmT needs to be of size (nP,) number of model parameters
-                    real_or_imag = rx.component
-                    if real_or_imag == 'real':
-                        Jtv +=  np.array(du_dmT, dtype=complex).real
-                    elif real_or_imag == 'imag':
-                        Jtv +=  -np.array(du_dmT, dtype=complex).real
-                    else:
-                        raise Exception('Must be real or imag')
+            self._Jtvec_atFreq(ATinv, freq, v, f, Jtv)
             # Clean the factorization, clear memory.
             ATinv.clean()
             logger.debug(
@@ -162,6 +155,40 @@ class BaseNSEMProblem(BaseFDEMProblem):
         logger.info('Calculation of Jtvec - completed')
         return Jtv
 
+    def _Jtvec_atFreq(self, Ainv, freq, v, f, Jtv):
+        """
+        Function to calculate Jtvec at a single frequency
+        """
+        logger = logging.getLogger(
+            'SimPEG.EM.NSEM.ProblemNSEM.BaseProblem._Jtvec_atFreq')
+
+        logger.info('Starting solution of Jtvec')
+        for src in self.survey.getSrcByFreq(freq):
+            # u_src needs to have both polarizations
+            u_src = f[src, :]
+
+            for rx in src.rxList:
+                # Get the adjoint evalDeriv
+                # PTv needs to be nE,2
+                logger.debug('Evaluating rx dervivative')
+                PTv = rx.evalDeriv(src, self.mesh, f, mkvc(v[src, rx]), adjoint=True) # wrt f, need possibility wrt m
+                # Get the
+                logger.debug('Evaluate other derivatives')
+                dA_duIT = mkvc(Ainv * PTv) # Force (nU,) shape
+                dA_dmT = self.getADeriv(freq, u_src, dA_duIT, adjoint=True)
+                dRHS_dmT = self.getRHSDeriv(freq, dA_duIT, adjoint=True)
+                # Make du_dmT
+                du_dmT = -dA_dmT + dRHS_dmT
+                # Select the correct component
+                # du_dmT needs to be of size (nP,) number of model parameters
+                real_or_imag = rx.component
+                if real_or_imag == 'real':
+                    Jtv +=  np.array(du_dmT, dtype=complex).real
+                elif real_or_imag == 'imag':
+                    Jtv +=  -np.array(du_dmT, dtype=complex).real
+                else:
+                    raise Exception('Must be real or imag')
+        return Jtv
 ###################################
 # 1D problems
 ###################################
