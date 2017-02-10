@@ -52,7 +52,7 @@ class BaseNSEMProblem(BaseFDEMProblem):
         """
         logger = logging.getLogger('SimPEG.EM.NSEM.ProblemNSEM.BaseProblem.Jvec')
 
-        logger.info('Starting solution of Jvec')
+        logger.info('Starting calculation of Jvec')
         # Calculate the fields if not given as input
         if f is None:
             logger.debug('Calculating fields')
@@ -71,7 +71,7 @@ class BaseNSEMProblem(BaseFDEMProblem):
             # Factor
             logger.debug('Factoring Ainv')
             Ainv = self.Solver(A, **self.solverOpts)
-
+            logger.debug('Factoring completed')
             # Calculate
             Jv = self._Jvec_atFreq(Ainv, freq, v, f, Jv)
             # Remove the factor from memory
@@ -109,7 +109,7 @@ class BaseNSEMProblem(BaseFDEMProblem):
             # Calculate the projection derivatives
             for rx in src.rxList:
                 # Calculate dP/du*du/dm*v
-                logger.debug('Evaluate rx derivative')
+                logger.debug('Evaluate rx derivatives')
                 Jv[src, rx] = rx.evalDeriv(src, self.mesh, f, mkvc(du_dm_v)) # wrt uPDeriv_u(mkvc(du_dm))
 
         return Jv
@@ -126,7 +126,7 @@ class BaseNSEMProblem(BaseFDEMProblem):
         """
         logger = logging.getLogger('SimPEG.EM.NSEM.ProblemNSEM.BaseProblem.Jtvec')
 
-        logger.info('Starting solution of Jtvec')
+        logger.info('Starting calcualtion of Jtvec')
         if f is None:
             logger.debug('Calculating fields')
             f = self.fields(m)
@@ -145,7 +145,7 @@ class BaseNSEMProblem(BaseFDEMProblem):
             AT = self.getA(freq).T
             logger.debug('Factoring Atinv')
             ATinv = self.Solver(AT, **self.solverOpts)
-
+            logger.debug('Factoring completed')
             self._Jtvec_atFreq(ATinv, freq, v, f, Jtv)
             # Clean the factorization, clear memory.
             ATinv.clean()
@@ -512,19 +512,13 @@ class Problem3D_ePrimSec(BaseNSEMProblem):
         for freq in self.survey.freqs:
             startTime = time.time()
             logger.debug('Starting work for {:.3e}'.format(freq))
+            # Get the system
             A = self.getA(freq)
-            rhs = self.getRHS(freq)
-            # Solve the system
+            # Factor  the system
+            logger.debug('Stating system solve')
             Ainv = self.Solver(A, **self.solverOpts)
-            e_s = Ainv * rhs
-
-            # Store the fields
-            Src = self.survey.getSrcByFreq(freq)[0]
-            # Store the fields
-            # Use self._solutionType
-            F[Src, 'e_pxSolution'] = e_s[:, 0]
-            F[Src, 'e_pySolution'] = e_s[:, 1]
-            # Note curl e = -iwb so b = -curl/iw
+            # Solve the system
+            self._solve_fields_atFreq(Ainv, freq, F)
 
             logger.debug(
                 'Ran for {:f} seconds'.format(time.time()-startTime)
@@ -533,3 +527,20 @@ class Problem3D_ePrimSec(BaseNSEMProblem):
 
         logger.info('Calculation of fields - completed')
         return F
+
+    def _solve_fields_atFreq(self, Ainv, freq, fields):
+        """
+        Function to solve the system at each frequncy.
+        """
+
+        rhs = self.getRHS(freq)
+        e_s = Ainv * rhs
+
+        # Store the fields
+        Src = self.survey.getSrcByFreq(freq)[0]
+        # Store the fields
+        # Use self._solutionType
+        fields[Src, 'e_pxSolution'] = e_s[:, 0]
+        fields[Src, 'e_pySolution'] = e_s[:, 1]
+
+        return fields

@@ -75,7 +75,6 @@ class Survey(SimPEGsurvey.BaseSurvey):
         """
         data = Data(self)
         for src in self.srcList:
-            sys.stdout.flush()
             for rx in src.rxList:
                 data[src, rx] = rx.eval(src, self.mesh, f)
         return data

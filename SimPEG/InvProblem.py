@@ -3,6 +3,7 @@ from . import Utils
 from . import Props
 from . import DataMisfit
 from . import Regularization
+from . import mkvc
 
 import properties
 import numpy as np
@@ -118,13 +119,16 @@ class BaseInvProblem(Props.BaseSimPEG):
     def evalFunction(self, m, return_g=True, return_H=True):
         """evalFunction(m, return_g=True, return_H=True)
         """
+
+        # Log
         logger = logging.getLogger(
             'SimPEG.InvProblem.BaseInversionProblem.evalFunction')
         logger.info('Starting calculations in invProb.evalFunction')
+        # Initialize
         self.model = m
         gc.collect()
 
-        # Store fields if doing a line-search
+
         f = self.getFields(m, store=(return_g is False and return_H is False))
 
         logger.debug('Solve the objective function')
@@ -158,4 +162,108 @@ class BaseInvProblem(Props.BaseSimPEG):
 
             H = sp.linalg.LinearOperator( (m.size, m.size), H_fun, dtype=m.dtype )
             out += (H,)
+        return out if len(out) > 1 else out[0]
+
+
+class eachFreq_InvProblem(BaseInvProblem):
+    """
+    Class aimed at taking advantage of the use of Pardiso Direct solver
+
+    Inherits the BaseInvProblem but extends the evalFunction to extract
+    the looping over frequencies/sources for the base functions.
+
+    Assumes to be a FDEM problem
+
+    """
+
+    def __init__(self, dmisfit, reg, opt, **kwargs):
+        super(eachFreq_InvProblem, self).__init__(dmisfit, reg, opt, **kwargs)
+
+
+    @Utils.timeIt
+    def evalFunction(self, m, return_g=True, return_sD=True):
+        """evalFunction(m, return_g=True, return_sD=True)
+
+        Sets up the evaluation of the objective function,
+        gradient and Hessian (if needed).
+        """
+        # Log
+        logger = logging.getLogger(
+            'SimPEG.InvProblem.eachFreq_InvProblem.evalFunction')
+        logger.info('Starting calculations')
+        # Initilize
+        # Set model
+        self.model = m
+        gc.collect()
+        # Alias the problem
+        problem = self.survey.prob
+        problem.model = m
+        # Set up the containers
+        # Predicted data
+        data_pred = problem.dataPair(problem.survey)
+        # Observed data
+        data_obs = problem.dataPair(problem.survey, self.survey.dobs)
+        # Data uncertainty
+        data_wd = problem.dataPair(self.survey, self.dmisfit.Wd)
+        # Data objective (phi_d)
+        data_phi_d = problem.dataPair(self.survey)
+        # Gradient multiplecation vector
+        data_vec_g = problem.dataPair(self.survey)
+
+        # The Fields
+        fields = problem.fieldsPair(problem.mesh, self.survey)
+        phi_dDeriv = np.zeros(m.size)
+
+        for freq in self.survey.freqs:
+            # Initialize at each loop
+
+
+            # Factorize
+            logger.debug('Working on frequency {:.3e} Hz'.format(freq))
+            logger.debug('Factorization starting...')
+            A = problem.getA(freq)
+            Ainv = problem.Solver(A, *problem.solverOpts)
+            logger.debug('Factorization completed')
+            # Calculate fields
+            logger.debug('Solving fields')
+            fields = problem._solve_fields_atFreq(Ainv, freq, fields)
+            # Calcualte the residual
+            for src in self.survey.getSrcByFreq(freq):
+                for rx in src.rxList:
+                    data_pred[src, rx] = rx.eval(src, problem.mesh, fields)
+                    data_phi_d[src, rx] = data_wd[src, rx] * (data_pred[src, rx] - data_obs[src, rx])
+                    data_vec_g[src, rx] = data_wd[src, rx] * data_phi_d[src, rx]
+            # Calculate the gradient
+            logger.debug('Calculating the phi_dDeriv')
+            phi_dDeriv = problem._Jtvec_atFreq(Ainv, freq, data_vec_g, fields, phi_dDeriv)
+            # Need to set up the Hessian calculation inside the loop
+
+            Ainv.clean()
+
+
+        # Calculate the parameters needed
+        R = mkvc(data_phi_d)
+        phi_d = 0.5*np.vdot(R, R)
+        phi_m = self.reg.eval(m)
+
+        # This is a cheap matrix vector calculation.
+        self.dpred = self.survey.dpred(m, f=fields)
+
+        self.phi_d, self.phi_d_last = phi_d, self.phi_d
+        self.phi_m, self.phi_m_last = phi_m, self.phi_m
+
+        phi = phi_d + self.beta * phi_m
+
+        out = (phi,)
+        if return_g:
+            logger.debug('Working on the objective function Gradient')
+            # Note: phi_dDeriv is calculated in the for loop
+            phi_mDeriv = self.reg.evalDeriv(m)
+
+            g = phi_dDeriv + self.beta * phi_mDeriv
+            out += (g,)
+
+        if return_sD:
+
+            out += (sD,)
         return out if len(out) > 1 else out[0]
