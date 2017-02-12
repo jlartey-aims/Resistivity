@@ -90,7 +90,8 @@ class BaseNSEMProblem(BaseFDEMProblem):
         """
         logger = logging.getLogger(
             'SimPEG.EM.NSEM.ProblemNSEM.BaseProblem._Jvec_atFreq')
-
+        if Jv is None:
+            Jv = self.dataPair(self.survey)
         for src in self.survey.getSrcByFreq(freq):
             logger.debug('Evaluating derivates')
             # We need fDeriv_m = df/du*du/dm + df/dm
@@ -163,6 +164,8 @@ class BaseNSEMProblem(BaseFDEMProblem):
             'SimPEG.EM.NSEM.ProblemNSEM.BaseProblem._Jtvec_atFreq')
 
         logger.info('Starting solution of Jtvec')
+        if Jtv is None:
+            Jtv = np.zeros(self.model.size)
         for src in self.survey.getSrcByFreq(freq):
             # u_src needs to have both polarizations
             u_src = f[src, :]

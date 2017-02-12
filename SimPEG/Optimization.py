@@ -892,7 +892,7 @@ class InexactGaussNewton_eachFreq(InexactGaussNewton):
             self.doStartIteration()
             logger.info('Evaluating fields, gradient and Hessian')
             self.f, self.g, self.searchDirection = evalFunction(
-                self.xc, return_g=True, return_sD=True)
+                self.xc, return_g=True, return_H=True)
             self.printIter()
             if self.stoppingCriteria(): break
             logger.info('Scaling the search direction')
