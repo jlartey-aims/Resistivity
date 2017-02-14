@@ -106,11 +106,11 @@ def reduce_data(NSEMdata, locations, freqs='All', rxs='All'):
         rx_comp = []
         for rxT in rxs:
             if'z' in rxT[0]:
-                rxtype = NSEM.Rx.Point_impedance3D
+                rxtype = Point_impedance3D
             elif 't' in rxT[0]:
-                rxtype = NSEM.Rx.Point_tipper3D
+                rxtype = Point_tipper3D
             elif 'm' in rxT[0]:
-                rxtype = NSEM.Rx.Point_horizontalmagvar3D
+                rxtype = Point_horizontalmagvar3D
             else:
                 raise IOError('Unknown rx type string')
             orient = rxT[1:3]
@@ -147,8 +147,8 @@ def reduce_data(NSEMdata, locations, freqs='All', rxs='All'):
             new_src = type(src)
             new_srcList.append(new_src(new_rxList, src.freq))
 
-    survey = NSEM.Survey(new_srcList)
-    return NSEM.Data(survey, np.concatenate(data_list))
+    survey = Survey(new_srcList)
+    return Data(survey, np.concatenate(data_list))
 def convert3Dto1Dobject(NSEMdata, rxType3D='yx'):
 
     # Find the unique locations
