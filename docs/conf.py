@@ -320,4 +320,5 @@ nitpick_ignore = [
     ('py:class', 'Fields1D_eTotal'),
     ('py:class', 'Fields3D_ePrimSec'),
     ('py:class', 'BaseNSEMSrc'),
+    ('py:class', 'DataNSEM_plot_functions')
 ]
