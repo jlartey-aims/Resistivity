@@ -88,6 +88,8 @@ def reduce_data(NSEMdata, locations, freqs='All', rxs='All'):
     # Initiate new objects
     new_srcList = []
     data_list = []
+    std_list = []
+    floor_list = []
 
     # Sort out input frequencies
     if freqs is 'All':
@@ -144,11 +146,24 @@ def reduce_data(NSEMdata, locations, freqs='All', rxs='All'):
                     new_rx = type(rx)
                     new_rxList.append(new_rx(new_locs, rx.orientation, rx.component))
                     data_list.append(NSEMdata[src, rx][ind_loc])
+                    try:
+                        std_list.append(NSEMdata.standard_deviation[src, rx][ind_loc])
+                        floor_list.append(NSEMdata.floor[src, rx][ind_loc])
+                    except Exception as e:
+                        print('No standard deviation or floor assigned')
+
             new_src = type(src)
             new_srcList.append(new_src(new_rxList, src.freq))
 
     survey = Survey(new_srcList)
-    return Data(survey, np.concatenate(data_list))
+    if std_list or floor_list:
+        return Data(
+            survey, np.concatenate(data_list),
+            np.concatenate(std_list), np.concatenate(floor_list))
+    else:
+        return Data(survey, np.concatenate(data_list))
+
+
 def convert3Dto1Dobject(NSEMdata, rxType3D='yx'):
 
     # Find the unique locations

@@ -33,7 +33,7 @@ def _validate_kwargs(input_dict, compare_dict):
     :type compare_dict: :class: `dict`
     """
     # Set the default plot kwargs
-    for key, val in compare_dict.iteritems():
+    for key, val in compare_dict.items():
         # Make sure they aren't already assigned
         if input_dict is None:
             input_dict = compare_dict.copy()
@@ -586,7 +586,7 @@ class DataNSEM_plot_functions(object):
         }
 
         # Set the default plot kwargs
-        for key, val in default_dict.iteritems():
+        for key, val in default_dict.items():
             # Make sure they aren't already assigned
             if key not in plot_kwargs:
                 plot_kwargs[key] = val

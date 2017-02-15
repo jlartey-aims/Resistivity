@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from .. import RxNSEM
 import properties
 
-from plotUtils import app_res_phs_imp_station_plot, tip_amp_station_plot
+from .plotUtils import app_res_phs_imp_station_plot, tip_amp_station_plot
 
 class NSEM_data_viewer(properties.HasProperties):
     """
@@ -59,8 +59,12 @@ class NSEM_data_viewer(properties.HasProperties):
 
         # Set up the plot containers
         self.station_figs = []
-        unique_rx = np.unique(
-            np.array([rx.__class__ for src in self._data.survey.srcList for rx in src.rxList]))
+        unique_rx = []
+        for src in self._data.survey.srcList:
+            for rx in src.rxList:
+                if rx.__class__ not in unique_rx:
+                    unique_rx.append(rx.__class__)
+
         if RxNSEM.Point_impedance3D in unique_rx:
             self.station_figs.append(app_res_phs_imp_station_plot())
         if RxNSEM.Point_tipper3D in unique_rx:

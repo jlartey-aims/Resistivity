@@ -891,12 +891,16 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
         '''
         Project the fields to natural source data.
 
+        Uses Schmucker convention,
+
         :param SrcNSEM src: The source of the fields to project
         :param SimPEG.Mesh.TensorMesh mesh: Mesh defining the topology of the problem
         :param FieldsNSEM f: Natural source fields object to project
         :rtype: numpy.array
-        :return: Evaluated component of the impedance data
+        :return: Evaluated component of the horizontal magnetic transfer data
+
         '''
+
         # NOTE: Maybe set this as a property
         self.src = src
         self.mesh = mesh
@@ -910,7 +914,9 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
             Mij = ( self._hy_num_px * self._hy_py - self._hy_num_py * self._hy_px)
         elif 'yy' in self.orientation:
             Mij = (-self._hy_num_px * self._hx_py + self._hy_num_py * self._hx_px)
-        rx_eval_complex = self._Hd * Mij
+
+        # Evaluate
+        rx_eval_complex = (self._Hd * Mij) - 1.
 
         # Return the full impedance
         if return_complex:
