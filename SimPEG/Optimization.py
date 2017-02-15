@@ -2,6 +2,7 @@ from __future__ import print_function
 from . import Utils
 import numpy as np
 import scipy.sparse as sp
+import logging
 from .Utils.SolverUtils import *
 norm = np.linalg.norm
 
@@ -173,20 +174,29 @@ class Minimize(object):
             finish()
             return xc
         """
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.minimize')
+        logger.info('Starting to minimize')
+
         self.evalFunction = evalFunction
         self.startup(x0)
         self.printInit()
-        print('x0 has any nan: {:b}'.format(np.any(np.isnan(x0))))
         while True:
+            logger.info('Starting minimization iteration')
             self.doStartIteration()
+            logger.info('Evaluating fields, gradient and Hessian')
             self.f, self.g, self.H = evalFunction(self.xc, return_g=True, return_H=True)
             self.printIter()
             if self.stoppingCriteria(): break
+            logger.info('Finding the search direction')
             self.searchDirection = self.findSearchDirection()
             del self.H #: Doing this saves memory, as it is not needed in the rest of the computations.
+            logger.info('Scaling the search direction')
             p = self.scaleSearchDirection(self.searchDirection)
+            logger.info('Modifing the search direction')
             xt, passLS = self.modifySearchDirection(p)
             if not passLS:
+                logger.debug('Modifing search direction work')
                 xt, caught = self.modifySearchDirectionBreak(p)
                 if not caught: return self.xc
             self.doEndIteration(xt)
@@ -336,6 +346,9 @@ class Minimize(object):
             :rtype: numpy.ndarray
             :return: p, Search Direction
         """
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.findSearchDirection')
+        logger.debug('Find search direction')
         return -self.g
 
     @Utils.count
@@ -350,7 +363,9 @@ class Minimize(object):
             :rtype: numpy.ndarray
             :return: p, Scaled Search Direction
         """
-
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.scaleSearchDirection')
+        logger.debug('Scaling search direction')
         if self.maxStep < np.abs(p.max()):
             p = self.maxStep*p/np.abs(p.max())
         return p
@@ -378,8 +393,12 @@ class Minimize(object):
             :return: (xt, passLS) numpy.ndarray, bool
         """
         # Projected Armijo linesearch
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.modifySearchDirection')
+        logger.debug('Modifing search direction')
         self._LS_t = 1
         self.iterLS = 0
+        logger.debug('Starting linesearch')
         while self.iterLS < self.maxIterLS:
             self._LS_xt      = self.projection(self.xc + self._LS_t*p)
             self._LS_ft      = self.evalFunction(self._LS_xt, return_g=False, return_H=False)
@@ -392,7 +411,7 @@ class Minimize(object):
                 self.printIter(inLS=True)
 
         if self.debugLS and self.iterLS > 0: self.printDone(inLS=True)
-
+        logger.debug('Finished modifing search direction')
         return self._LS_xt, self.iterLS < self.maxIterLS
 
     @Utils.count
@@ -779,9 +798,119 @@ class InexactGaussNewton(BFGS, Minimize, Remember):
 
     @Utils.timeIt
     def findSearchDirection(self):
+        logger = logging.getLogger(
+            'SimPEG.Optimization.InexactGaussNewton.findSearchDirection')
+
+        logger.info('Starting calcualtions of search direction')
+
         Hinv = SolverICG(self.H, M=self.approxHinv, tol=self.tolCG, maxiter=self.maxIterCG)
         p = Hinv * (-self.g)
+        logger.info('Finished calcualtions of search direction')
         return p
+
+class InexactGaussNewton_eachFreq(InexactGaussNewton):
+    """
+        Same as InexactGaussNewton solver but it overrides
+        the minimize function from Minimize to solve for
+        the search direction at each frequency.
+        Minimizes using CG as the inexact solver of
+
+        .. math::
+
+            \mathbf{H p = -g}
+
+        By default BFGS is used as the preconditioner.
+
+        Use *nbfgs* to set the memory limitation of BFGS.
+
+        To set the initial H0 to be used in BFGS, set *bfgsH0* to be a SimPEG.Solver
+
+    """
+
+    def __init__(self, **kwargs):
+        InexactGaussNewton.__init__(self, **kwargs)
+
+    name = 'Inexact Gauss Newton'
+
+    maxIterCG = 5
+    tolCG = 1e-1
+
+    @Utils.timeIt
+    def minimize(self, evalFunction, x0):
+        """minimize(evalFunction, x0)
+
+        Minimizes the function (evalFunction) starting at the location x0.
+
+        :param callable evalFunction: function handle that evaluates: f, g, sD (serachDirection)
+        :param numpy.ndarray x0: starting location
+        :rtype: numpy.ndarray
+        :return: x, the last iterate of the optimization algorithm
+
+        evalFunction is a function handle::
+
+            (f[, g][, sD]) = evalFunction(x, return_g=False, return_sD=False )
+
+            def evalFunction(x, return_g=False, return_sD=False):
+                out = (f,)
+                if return_g:
+                    out += (g,)
+                if return_sD:
+                    out += (H,)
+                return out if len(out) > 1 else out[0]
+
+
+        The algorithm for general minimization is as follows::
+
+            startup(x0)
+            printInit()
+
+            while True:
+                doStartIteration()
+                f, g, H = evalFunction(xc)
+                printIter()
+                if stoppingCriteria(): break
+                p = scaleSearchDirection(p)
+                xt, passLS = modifySearchDirection(p)
+                if not passLS:
+                    xt, caught = modifySearchDirectionBreak(p)
+                    if not caught: return xc
+                doEndIteration(xt)
+
+            printDone()
+            finish()
+            return xc
+        """
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.minimize')
+        logger.info('Starting to minimize')
+
+        self.evalFunction = evalFunction
+        self.startup(x0)
+        self.printInit()
+        while True:
+            logger.info('Starting minimization iteration')
+            self.doStartIteration()
+            logger.info('Evaluating fields, gradient and Hessian')
+            self.f, self.g, self.searchDirection = evalFunction(
+                self.xc, return_g=True, return_H=True)
+            self.printIter()
+            if self.stoppingCriteria(): break
+            logger.info('Scaling the search direction')
+            p = self.scaleSearchDirection(self.searchDirection)
+            logger.info('Modifing the search direction')
+            xt, passLS = self.modifySearchDirection(p)
+            if not passLS:
+                logger.debug('Modifing search direction work')
+                xt, caught = self.modifySearchDirectionBreak(p)
+                if not caught: return self.xc
+            self.doEndIteration(xt)
+            if self.stopNextIteration: break
+
+        self.printDone()
+        self.finish()
+
+        return self.xc
+
 
 
 class SteepestDescent(Minimize, Remember):

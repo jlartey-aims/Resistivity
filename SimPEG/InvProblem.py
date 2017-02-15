@@ -3,12 +3,16 @@ from . import Utils
 from . import Props
 from . import DataMisfit
 from . import Regularization
+from . import mkvc
 
 import properties
 import numpy as np
 import scipy.sparse as sp
 import gc
+import logging
 
+# Wrap the solver
+SolverICG = Utils.SolverUtils.SolverWrapI(sp.linalg.cg, checkAccuracy=False)
 
 class BaseInvProblem(Props.BaseSimPEG):
     """BaseInvProblem(dmisfit, reg, opt)"""
@@ -118,12 +122,18 @@ class BaseInvProblem(Props.BaseSimPEG):
         """evalFunction(m, return_g=True, return_H=True)
         """
 
+        # Log
+        logger = logging.getLogger(
+            'SimPEG.InvProblem.BaseInversionProblem.evalFunction')
+        logger.info('Starting calculations in invProb.evalFunction')
+        # Initialize
         self.model = m
         gc.collect()
 
-        # Store fields if doing a line-search
+
         f = self.getFields(m, store=(return_g is False and return_H is False))
 
+        logger.debug('Solve the objective function')
         phi_d = self.dmisfit.eval(m, f=f)
         phi_m = self.reg.eval(m)
 
@@ -137,6 +147,7 @@ class BaseInvProblem(Props.BaseSimPEG):
 
         out = (phi,)
         if return_g:
+            logger.debug('Solving the objective function gradient')
             phi_dDeriv = self.dmisfit.evalDeriv(m, f=f)
             phi_mDeriv = self.reg.evalDeriv(m)
 
@@ -144,6 +155,7 @@ class BaseInvProblem(Props.BaseSimPEG):
             out += (g,)
 
         if return_H:
+            logger.debug('Solving the objective function Hessian')
             def H_fun(v):
                 phi_d2Deriv = self.dmisfit.eval2Deriv(m, v, f=f)
                 phi_m2Deriv = self.reg.eval2Deriv(m, v=v)
@@ -152,4 +164,135 @@ class BaseInvProblem(Props.BaseSimPEG):
 
             H = sp.linalg.LinearOperator( (m.size, m.size), H_fun, dtype=m.dtype )
             out += (H,)
+        return out if len(out) > 1 else out[0]
+
+
+class eachFreq_InvProblem(BaseInvProblem):
+    """
+    Class aimed at taking advantage of the use of Pardiso Direct solver
+
+    Inherits the BaseInvProblem but extends the evalFunction to extract
+    the looping over frequencies/sources for the base functions.
+
+    Assumes to be a FDEM problem
+
+    """
+
+    def __init__(self, dmisfit, reg, opt, **kwargs):
+        super(eachFreq_InvProblem, self).__init__(dmisfit, reg, opt, **kwargs)
+
+
+    @Utils.timeIt
+    def evalFunction(self, m, return_g=True, return_H=True):
+        """evalFunction(m, return_g=True, return_H=True)
+
+        Sets up the evaluation of the objective function,
+        gradient and Hessian (if needed).
+        """
+        # Log
+        logger = logging.getLogger(
+            'SimPEG.InvProblem.eachFreq_InvProblem.evalFunction')
+        logger.info('Starting calculations')
+        # Initilize
+        # Set model
+        self.model = m
+        gc.collect()
+
+        # Calculate the model objectives
+        phi_m = self.reg.eval(m)
+        phi_mDeriv = self.reg.evalDeriv(m)
+
+        # Alias the problem
+        problem = self.survey.prob
+        problem.model = m
+        # Set up the containers
+        # Predicted data
+        data_pred = problem.dataPair(problem.survey)
+        # Observed data
+        data_obs = problem.dataPair(problem.survey, self.survey.dobs)
+        # Data uncertainty
+        data_wd = problem.dataPair(self.survey, self.dmisfit.Wd)
+        # Data objective (phi_d)
+        data_phi_d = problem.dataPair(self.survey)
+        # Gradient multiplecation vector
+        data_vec_g = problem.dataPair(self.survey)
+
+        # The Fields
+        fields = problem.fieldsPair(problem.mesh, self.survey)
+        phi_dDeriv = np.zeros(m.size)
+        sD = np.zeros(m.size)
+        for freq in self.survey.freqs:
+            # Initialize at each loop
+
+
+            # Factorize
+            logger.debug('Working on frequency {:.3e} Hz'.format(freq))
+            logger.debug('Factorization starting...')
+            A = problem.getA(freq)
+            Ainv = problem.Solver(A, *problem.solverOpts)
+            logger.debug('Factorization completed')
+            # Calculate fields
+            logger.debug('Fields: Starting caluculation')
+            fields = problem._solve_fields_atFreq(Ainv, freq, fields)
+
+            # Calcualte the residual
+            for src in self.survey.getSrcByFreq(freq):
+                for rx in src.rxList:
+                    data_pred[src, rx] = rx.eval(src, problem.mesh, fields)
+                    data_phi_d[src, rx] = data_wd[src, rx] * (data_pred[src, rx] - data_obs[src, rx])
+                    data_vec_g[src, rx] = data_wd[src, rx] * data_phi_d[src, rx]
+
+            logger.debug('Fields: Finished caluculation')
+            # Calculate the gradient
+            if return_g or return_H:
+                logger.debug('Gradient: Starting calculation')
+                phi_f_dDeriv = problem._Jtvec_atFreq(Ainv, freq, data_vec_g, fields, None)
+                phi_dDeriv += phi_f_dDeriv
+                phi_f_deriv = phi_f_dDeriv + self.beta * phi_mDeriv
+                logger.debug('Gradient: Finished calculation')
+
+            # Need to set up the Hessian
+            if return_H:
+                logger.info('Search Direction: Starting caluculation')
+                # Make it to a function
+                def H_f_fun(v):
+                    vec_t = problem.dataPair(self.survey)
+                    vec_t[src, rx] = data_wd[src, rx] * (
+                        data_wd[src, rx] * problem._Jvec_atFreq(
+                            Ainv, freq, v, fields, vec_t)[src, rx])
+                    phi_f_d2Deriv = problem._Jtvec_atFreq(
+                        Ainv, freq, vec_t, fields, None)
+                    phi_m2Deriv = self.reg.eval2Deriv(m, v=v)
+
+                    return phi_f_d2Deriv + self.beta * phi_m2Deriv
+
+                # Make the function into an linear operator
+                H_f = sp.linalg.LinearOperator( (m.size, m.size), H_f_fun, dtype=m.dtype )
+
+                # Iterativily solve the system.
+                H_f_inv = SolverICG(H_f, M=self.opt.approxHinv, tol=self.opt.tolCG, maxiter=self.opt.maxIterCG)
+                sD_f = H_f_inv * (-phi_f_deriv)
+                sD += sD
+                logger.info('Search Direction: Finished calcualtions')
+                del H_f, H_f_inv #: Doing this saves memory, as it is not needed in the rest of the computations.
+            Ainv.clean()
+
+
+        # Calculate the parameters needed
+        R = mkvc(data_phi_d)
+        phi_d = 0.5*np.vdot(R, R)
+
+        # This is a cheap matrix vector calculation.
+        self.dpred = self.survey.dpred(m, f=fields) # Could change this.
+        self.phi_d, self.phi_d_last = phi_d, self.phi_d
+        self.phi_m, self.phi_m_last = phi_m, self.phi_m
+        phi = phi_d + self.beta * phi_m
+
+        out = (phi,)
+        if return_g:
+            g = phi_dDeriv + self.beta * phi_mDeriv
+            out += (g,)
+
+        if return_H:
+            out += (sD,)
         return out if len(out) > 1 else out[0]

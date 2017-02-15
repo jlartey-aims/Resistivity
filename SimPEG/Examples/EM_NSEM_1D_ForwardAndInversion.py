@@ -16,6 +16,17 @@ def run(plotIt=True):
         Setup and run a MT 1D inversion.
 
     """
+    import logging
+    logger = logging.getLogger('SimPEG')
+    logger.setLevel(logging.INFO)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s -' +
+        '%(module)s - %(message)s'
+    )
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
 
     # Setup the forward modeling
     # Setting up 1D mesh and conductivity models to forward model data.
@@ -122,6 +133,8 @@ def run(plotIt=True):
     targmis.target = survey.nD
     # Create an inversion object
     directives = [beta, betaest, targmis]
+
+    print('Target misfit is {}'.format(targmis.target))
     inv = simpeg.Inversion.BaseInversion(invProb, directiveList=directives)
 
     # Run the inversion

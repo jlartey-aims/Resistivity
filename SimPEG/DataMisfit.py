@@ -1,7 +1,10 @@
 from __future__ import print_function
 import numpy as np
+import logging
+
 from SimPEG import Utils
 from SimPEG import Survey
+
 
 
 class BaseDataMisfit(object):
@@ -111,18 +114,118 @@ class l2_DataMisfit(BaseDataMisfit):
     @Utils.timeIt
     def eval(self, m, f=None):
         "eval(m, f=None)"
-        if f is None: f = self.prob.fields(m)
+        # Set the logger
+        logger = logging.getLogger(
+            'SimPEG.DataMisfit.l2_dataMisfit.eval')
+        logger.debug('DataMisfit.eval starting')
+        if f is None:
+            logger.debug('Calculating fields')
+            f = self.prob.fields(m)
         R = self.Wd * self.survey.residual(m, f)
         return 0.5*np.vdot(R, R)
 
     @Utils.timeIt
     def evalDeriv(self, m, f=None):
         "evalDeriv(m, f=None)"
-        if f is None: f = self.prob.fields(m)
+        logger = logging.getLogger(
+            'SimPEG.DataMisfit.l2_dataMisfit.evalDeriv')
+
+        logger.debug('DataMisfit.evalDeriv starting')
+        if f is None:
+            logger.debug('Calculating fields')
+            f = self.prob.fields(m)
         return self.prob.Jtvec(m, self.Wd * (self.Wd * self.survey.residual(m, f=f)), f=f)
 
     @Utils.timeIt
     def eval2Deriv(self, m, v, f=None):
         "eval2Deriv(m, v, f=None)"
-        if f is None: f = self.prob.fields(m)
+        logger = logging.getLogger(
+            'SimPEG.DataMisfit.l2_dataMisfit.eval2Deriv')
+        logger.debug('DataMisfit.eval2Deriv starting')
+        if f is None:
+            logger.debug('Calculating fields')
+            f = self.prob.fields(m)
         return self.prob.Jtvec_approx(m, self.Wd * (self.Wd * self.prob.Jvec_approx(m, v, f=f)), f=f)
+
+
+# class l2_DataMisfit_perFrequency(BaseDataMisfit):
+#     """
+
+#     The data misfit with an l_2 norm:
+
+#     .. math::
+
+#         \mu_\\text{data} = {1\over 2}\left| \mathbf{W}_d (\mathbf{d}_\\text{pred} - \mathbf{d}_\\text{obs}) \\right|_2^2
+
+#     """
+
+#     def __init__(self, survey, **kwargs):
+#         BaseDataMisfit.__init__(self, survey, **kwargs)
+
+#     @property
+#     def Wd(self):
+#         """getWd(survey)
+
+#             The data weighting matrix.
+
+#             The default is based on the norm of the data plus a noise floor.
+
+#             :rtype: scipy.sparse.csr_matrix
+#             :return: Wd
+
+#         """
+
+#         if getattr(self, '_Wd', None) is None:
+
+#             survey = self.survey
+
+#             if getattr(survey,'std', None) is None:
+#                 print('SimPEG.DataMisfit.l2_DataMisfit assigning default std of 5%')
+#                 survey.std = 0.05
+
+#             if getattr(survey, 'eps', None) is None:
+#                 print('SimPEG.DataMisfit.l2_DataMisfit assigning default eps of 1e-5 * ||dobs||')
+#                 survey.eps = np.linalg.norm(Utils.mkvc(survey.dobs),2)*1e-5
+
+#             self._Wd = Utils.sdiag(1/(abs(survey.dobs)*survey.std+survey.eps))
+#         return self._Wd
+
+#     @Wd.setter
+#     def Wd(self, value):
+#         self._Wd = value
+
+#     @Utils.timeIt
+#     def eval(self, m, f, freq,  ):
+#         "eval(m, f=None)"
+#         # Set the logger
+#         logger = logging.getLogger(
+#             'SimPEG.DataMisfit.l2_dataMisfit.eval')
+#         logger.debug('DataMisfit.eval starting')
+#         if f is None:
+#             logger.debug('Calculating fields')
+#             f = self.prob.fields(m)
+#         R = self.Wd * self.survey.residual(m, f)
+#         return 0.5*np.vdot(R, R)
+
+#     @Utils.timeIt
+#     def evalDeriv(self, m, f=None):
+#         "evalDeriv(m, f=None)"
+#         logger = logging.getLogger(
+#             'SimPEG.DataMisfit.l2_dataMisfit.evalDeriv')
+
+#         logger.debug('DataMisfit.evalDeriv starting')
+#         if f is None:
+#             logger.debug('Calculating fields')
+#             f = self.prob.fields(m)
+#         return self.prob.Jtvec(m, self.Wd * (self.Wd * self.survey.residual(m, f=f)), f=f)
+
+#     @Utils.timeIt
+#     def eval2Deriv(self, m, v, f=None):
+#         "eval2Deriv(m, v, f=None)"
+#         logger = logging.getLogger(
+#             'SimPEG.DataMisfit.l2_dataMisfit.eval2Deriv')
+#         logger.debug('DataMisfit.eval2Deriv starting')
+#         if f is None:
+#             logger.debug('Calculating fields')
+#             f = self.prob.fields(m)
+#         return self.prob.Jtvec_approx(m, self.Wd * (self.Wd * self.prob.Jvec_approx(m, v, f=f)), f=f)
