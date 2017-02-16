@@ -908,15 +908,19 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
 
         if 'xx' in self.orientation:
             Mij = ( self._hx_num_px * self._hy_py - self._hx_num_py * self._hy_px)
+            schmucker_corr = 1.
         elif 'xy' in self.orientation:
             Mij = (-self._hx_num_px * self._hx_py + self._hx_num_py * self._hx_px)
+            schmucker_corr = 0.
         elif 'yx' in self.orientation:
             Mij = ( self._hy_num_px * self._hy_py - self._hy_num_py * self._hy_px)
+            schmucker_corr = 0.
         elif 'yy' in self.orientation:
             Mij = (-self._hy_num_px * self._hx_py + self._hy_num_py * self._hx_px)
+            schmucker_corr = 1.
 
         # Evaluate
-        rx_eval_complex = (self._Hd * Mij) - 1.
+        rx_eval_complex = (self._Hd * Mij) - schmucker_corr
 
         # Return the full impedance
         if return_complex:
@@ -930,7 +934,7 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
         :param SimPEG.EM.NSEM.SrcNSEM src: NSEM source
         :param SimPEG.Mesh.TensorMesh mesh: Mesh defining the topology of the problem
         :param SimPEG.EM.NSEM.FieldsNSEM f: NSEM fields object of the source
-        :param numpy.ndarray v: Random vector of size
+        :param numpy.ndarray v: A vector of size
         :rtype: numpy.array
         :return: Calculated derivative (nD,) (adjoint=False) and (nP,2) (adjoint=True)
             for both polarizations
@@ -1010,6 +1014,7 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
                     self._sDiag(self._hx_num_py) * self._hy_px_u(v) -
                     self._sDiag(self._hy_px) * self._hx_num_py_u(v)
                 )
+                schmucker_corr = 1.
             elif 'xy' in self.orientation:
                 MijN_uV = (
                     -self._sDiag(self._hx_py) * self._hx_num_px_u(v) -
@@ -1017,6 +1022,7 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
                     self._sDiag(self._hx_num_py) * self._hx_px_u(v) +
                     self._sDiag(self._hx_px) * self._hx_num_py_u(v)
                 )
+                schmucker_corr = 0.
             elif 'yx' in self.orientation:
                 MijN_uV = (
                     self._sDiag(self._hy_py) * self._hy_num_px_u(v) +
@@ -1024,6 +1030,7 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
                     self._sDiag(self._hy_num_py) * self._hy_px_u(v) -
                     self._sDiag(self._hy_px) * self._hy_num_py_u(v)
                 )
+                schmucker_corr = 0
             elif 'yy' in self.orientation:
                 MijN_uV = (
                     -self._sDiag(self._hx_py) * self._hy_num_px_u(v) -
@@ -1031,8 +1038,9 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
                     self._sDiag(self._hy_num_py) * self._hx_px_u(v) +
                     self._sDiag(self._hx_px) * self._hy_num_py_u(v)
                 )
+                schmucker_corr = 1.
 
-            Mij = self.eval(src, self.mesh, self.f, True)
+            Mij = self.eval(src, self.mesh, self.f, True) + schmucker_corr
             # Calculate the complex derivative
             rx_deriv_real = self._Hd * (MijN_uV - self._sDiag(Mij) * self._Hd_uV(v))
             rx_deriv_component = SimPEG.np.array(getattr(rx_deriv_real, self.component))

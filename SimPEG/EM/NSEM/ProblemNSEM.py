@@ -163,7 +163,7 @@ class BaseNSEMProblem(BaseFDEMProblem):
         logger = logging.getLogger(
             'SimPEG.EM.NSEM.ProblemNSEM.BaseProblem._Jtvec_atFreq')
 
-        logger.info('Starting solution of Jtvec')
+        logger.debug('Starting: Calculation of Jtvec ')
         if Jtv is None:
             Jtv = np.zeros(self.model.size)
         for src in self.survey.getSrcByFreq(freq):
@@ -191,6 +191,7 @@ class BaseNSEMProblem(BaseFDEMProblem):
                     Jtv +=  -np.array(du_dmT, dtype=complex).real
                 else:
                     raise Exception('Must be real or imag')
+        logger.debug('Completed: Calculation of Jtvec')
         return Jtv
 ###################################
 # 1D problems
