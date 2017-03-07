@@ -830,7 +830,7 @@ class InexactGaussNewton_eachFreq(InexactGaussNewton):
     def __init__(self, **kwargs):
         InexactGaussNewton.__init__(self, **kwargs)
 
-    name = 'Inexact Gauss Newton'
+    name = 'Inexact Gauss Newton - each Freq'
 
     maxIterCG = 5
     tolCG = 1e-1
