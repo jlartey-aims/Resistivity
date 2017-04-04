@@ -81,7 +81,8 @@ class BaseNSEMProblem(BaseFDEMProblem):
             # Calculate
             Jv = self._Jvec_atFreq(Ainv, freq, v, f, Jv)
             # Remove the factor from memory
-            Ainv.clean()
+            if self._factor_dict is None:
+                Ainv.clean()
             logger.debug(
                 'Ran for {:f} seconds'.format(time.time()-startTime)
             )
@@ -159,7 +160,8 @@ class BaseNSEMProblem(BaseFDEMProblem):
                 ATinv = self._factor_dict[freq]
             self._Jtvec_atFreq(ATinv, freq, v, f, Jtv)
             # Clean the factorization, clear memory.
-            ATinv.clean()
+            if self._factor_dict is None:
+                ATinv.clean()
             logger.debug(
                 'Ran for {:f} seconds'.format(time.time()-startTime)
             )
@@ -540,7 +542,8 @@ class Problem3D_ePrimSec(BaseNSEMProblem):
             logger.debug(
                 'Ran for {:f} seconds'.format(time.time()-startTime)
             )
-            Ainv.clean()
+            if self._factor_dict is None:
+                Ainv.clean()
 
         logger.info('Calculation of fields - completed')
         return F

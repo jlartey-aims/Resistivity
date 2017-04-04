@@ -942,7 +942,7 @@ class InexactGaussNewton_storeFactors(InexactGaussNewton):
         self._LS_t = 1
         self.iterLS = 0
         # Clean the factors
-        for fact in self.parent.prob._factor_dict:
+        for fact in self.parent.prob._factor_dict.values():
             fact.clean()
         self.parent.prob._factor_dict = None
         # Scale the search direction

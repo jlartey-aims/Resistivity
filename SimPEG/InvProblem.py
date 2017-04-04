@@ -204,7 +204,7 @@ class storeFactors_InvProblem(BaseInvProblem):
                 A = self.prob.getA(freq)
                 # Factor  the system
                 Ainv = self.prob.Solver(A, **self.prob.solverOpts)
-                self.prob._factor_dict[freq] = Ainv.factor()
+                self.prob._factor_dict[freq] = Ainv
 
         f = self.getFields(m, store=(return_g is False and return_H is False))
 
