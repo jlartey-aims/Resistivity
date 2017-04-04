@@ -35,6 +35,9 @@ class BaseNSEMProblem(BaseFDEMProblem):
     Solver = SimpegSolver
     solverOpts = {}
 
+    # Dictionary to store the factors
+    _factor_dict = None
+
     # Notes:
     # Use the fields and devs methods from BaseFDEMProblem
 
@@ -68,10 +71,13 @@ class BaseNSEMProblem(BaseFDEMProblem):
             logger.debug('Starting work for {:.3e}'.format(freq))
             # Get the system
             A = self.getA(freq)
-            # Factor
-            logger.debug('Factoring Ainv')
-            Ainv = self.Solver(A, **self.solverOpts)
-            logger.debug('Factoring completed')
+            if self._factor_dict is None:
+                # Factor
+                logger.debug('Factoring Ainv')
+                Ainv = self.Solver(A, **self.solverOpts)
+                logger.debug('Factoring completed')
+            else:
+                Ainv = self._factor_dict[freq]
             # Calculate
             Jv = self._Jvec_atFreq(Ainv, freq, v, f, Jv)
             # Remove the factor from memory
@@ -144,9 +150,13 @@ class BaseNSEMProblem(BaseFDEMProblem):
             startTime = time.time()
             logger.debug('Starting work for {:.3e}'.format(freq))
             AT = self.getA(freq).T
-            logger.debug('Factoring Atinv')
-            ATinv = self.Solver(AT, **self.solverOpts)
-            logger.debug('Factoring completed')
+            if self._factor_dict is None:
+                # Calculate
+                logger.debug('Factoring Atinv')
+                ATinv = self.Solver(AT, **self.solverOpts)
+                logger.debug('Factoring completed')
+            else:
+                ATinv = self._factor_dict[freq]
             self._Jtvec_atFreq(ATinv, freq, v, f, Jtv)
             # Clean the factorization, clear memory.
             ATinv.clean()
@@ -519,8 +529,11 @@ class Problem3D_ePrimSec(BaseNSEMProblem):
             # Get the system
             A = self.getA(freq)
             # Factor  the system
-            logger.debug('Stating system solve')
-            Ainv = self.Solver(A, **self.solverOpts)
+            if self._factor_dict is None:
+                logger.debug('Stating system solve')
+                Ainv = self.Solver(A, **self.solverOpts)
+            else:
+                Ainv = self._factor_dict[freq]
             # Solve the system
             self._solve_fields_atFreq(Ainv, freq, F)
 

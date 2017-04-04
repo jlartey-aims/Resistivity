@@ -124,7 +124,7 @@ class BaseInvProblem(Props.BaseSimPEG):
 
         # Log
         logger = logging.getLogger(
-            'SimPEG.InvProblem.BaseInversionProblem.evalFunction')
+            'SimPEG.InvProblem.BaseInvProblem.evalFunction')
         logger.info('Starting calculations in invProb.evalFunction')
         # Initialize
         self.model = m
@@ -134,6 +134,81 @@ class BaseInvProblem(Props.BaseSimPEG):
         f = self.getFields(m, store=(return_g is False and return_H is False))
 
         logger.debug('Solve the objective function')
+        phi_d = self.dmisfit.eval(m, f=f)
+        phi_m = self.reg.eval(m)
+
+        # This is a cheap matrix vector calculation.
+        self.dpred = self.survey.dpred(m, f=f)
+
+        self.phi_d, self.phi_d_last = phi_d, self.phi_d
+        self.phi_m, self.phi_m_last = phi_m, self.phi_m
+
+        phi = phi_d + self.beta * phi_m
+
+        out = (phi,)
+        if return_g:
+            logger.debug('Solving the objective function gradient')
+            phi_dDeriv = self.dmisfit.evalDeriv(m, f=f)
+            phi_mDeriv = self.reg.evalDeriv(m)
+
+            g = phi_dDeriv + self.beta * phi_mDeriv
+            out += (g,)
+
+        if return_H:
+            logger.debug('Solving the objective function Hessian')
+            def H_fun(v):
+                phi_d2Deriv = self.dmisfit.eval2Deriv(m, v, f=f)
+                phi_m2Deriv = self.reg.eval2Deriv(m, v=v)
+
+                return phi_d2Deriv + self.beta * phi_m2Deriv
+
+            H = sp.linalg.LinearOperator( (m.size, m.size), H_fun, dtype=m.dtype )
+            out += (H,)
+        return out if len(out) > 1 else out[0]
+
+class storeFactors_InvProblem(BaseInvProblem):
+    """
+    Class aimed at taking advantage of the use of Pardiso Direct solver
+
+    Inherits the BaseInvProblem but extends the evalFunction to store
+    the factors within the problem for reuse.
+
+    Assumes to be a NSWM problem
+
+    """
+
+    def __init__(self, dmisfit, reg, opt, **kwargs):
+        super(storeFactors_InvProblem, self).__init__(dmisfit, reg, opt, **kwargs)
+
+    @Utils.timeIt
+    def evalFunction(self, m, return_g=True, return_H=True):
+        """evalFunction(m, return_g=True, return_H=True)
+        """
+
+        # Log
+        logger = logging.getLogger(
+            'SimPEG.InvProblem.storeFactors_InvProblem.evalFunction')
+        logger.info('Starting calculations ')
+        # Initialize
+        self.model = m
+        gc.collect()
+
+        # Set the model to the problem
+        self.prob.model = m
+        # Calcualte the factors if the aren't there
+        if self.prob._factor_dict is None:
+            self.prob._factor_dict = {}
+            for freq in self.prob.survey.freqs:
+                logger.debug('Starting factoring for {:.3e}'.format(freq))
+                # Get the system
+                A = self.prob.getA(freq)
+                # Factor  the system
+                Ainv = self.prob.Solver(A, **self.prob.solverOpts)
+                self.prob._factor_dict[freq] = Ainv.factor()
+
+        f = self.getFields(m, store=(return_g is False and return_H is False))
+
+        logger.debug('Calculate the objective function parts')
         phi_d = self.dmisfit.eval(m, f=f)
         phi_m = self.reg.eval(m)
 

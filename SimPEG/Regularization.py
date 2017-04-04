@@ -416,6 +416,7 @@ class BaseRegularization(object):
 
         return mD.T * ( self.W.T * ( self.W * ( mD * v) ) )
 
+
 class Simple(BaseRegularization):
     """
     Simple regularization that does not include length scales in the derivatives.
@@ -461,34 +462,6 @@ class Simple(BaseRegularization):
         if getattr(self, '_Wz', None) is None:
             self._Wz = Utils.sdiag((self.alpha_z * (self.regmesh.aveCC2Fz*self.cell_weights))**0.5)*self.regmesh.cellDiffzStencil
         return self._Wz
-
-#    @property
-#    def Wsmooth(self):
-#        """Full smoothness regularization matrix W"""
-#        print('wtf why are we using Wsmooth')
-#        raise NotImplementedError
-#        if getattr(self, '_Wsmooth', None) is None:
-#            wlist = (self.Wx,)
-#            if self.regmesh.dim > 1:
-#                wlist += (self.Wy,)
-#            if self.regmesh.dim > 2:
-#                wlist += (self.Wz,)
-#            self._Wsmooth = sp.vstack(wlist)
-#        return self._Wsmooth
-#
-#    @property
-#    def W(self):
-#        """Full regularization matrix W"""
-#        print('wtf why are we using W')
-#        if getattr(self, '_W', None) is None:
-#            wlist = (self.Wsmall, self.Wx)
-#            if self.regmesh.dim > 1:
-#                wlist += (self.Wy,)
-#            if self.regmesh.dim > 2:
-#                wlist += (self.Wz,)
-#            self._W = sp.vstack(wlist)
-#        return self._W
-
 
     @Utils.timeIt
     def _evalSmall(self, m):
@@ -644,7 +617,6 @@ class Simple(BaseRegularization):
     @Utils.timeIt
     def eval2Deriv(self, m, v=None):
         return self._evalSmall2Deriv(m, v) + self._evalSmooth2Deriv(m, v)
-
 
 
 class Tikhonov(Simple):

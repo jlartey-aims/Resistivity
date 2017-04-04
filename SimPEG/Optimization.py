@@ -808,6 +808,161 @@ class InexactGaussNewton(BFGS, Minimize, Remember):
         logger.info('Finished calcualtions of search direction')
         return p
 
+class InexactGaussNewton_storeFactors(InexactGaussNewton):
+    """
+        Same as InexactGaussNewton solver but it overrides
+        the minimize function from Minimize to store factors
+        for each frequency that for all the field and sensitivity
+        calculations.
+
+        Minimizes using CG as the inexact solver of
+
+        .. math::
+
+            \mathbf{H p = -g}
+
+        By default BFGS is used as the preconditioner.
+
+        Use *nbfgs* to set the memory limitation of BFGS.
+
+        To set the initial H0 to be used in BFGS, set *bfgsH0* to be a SimPEG.Solver
+
+    """
+
+    def __init__(self, **kwargs):
+        InexactGaussNewton.__init__(self, **kwargs)
+
+    name = 'Inexact Gauss Newton - store Factors'
+
+    maxIterCG = 5
+    tolCG = 1e-1
+
+    @Utils.timeIt
+    def minimize(self, evalFunction, x0):
+        """minimize(evalFunction, x0)
+
+        Minimizes the function (evalFunction) starting at the location x0.
+
+        :param callable evalFunction: function handle that evaluates: f, g, sD (serachDirection)
+        :param numpy.ndarray x0: starting location
+        :rtype: numpy.ndarray
+        :return: x, the last iterate of the optimization algorithm
+
+        evalFunction is a function handle::
+
+            (f[, g][, sD]) = evalFunction(x, return_g=False, return_sD=False )
+
+            def evalFunction(x, return_g=False, return_sD=False):
+                out = (f,)
+                if return_g:
+                    out += (g,)
+                if return_sD:
+                    out += (H,)
+                return out if len(out) > 1 else out[0]
+
+
+        The algorithm for general minimization is as follows::
+
+            startup(x0)
+            printInit()
+
+            while True:
+                doStartIteration()
+                f, g, H = evalFunction(xc)
+                printIter()
+                if stoppingCriteria(): break
+                p = scaleSearchDirection(p)
+                xt, passLS = modifySearchDirection(p)
+                if not passLS:
+                    xt, caught = modifySearchDirectionBreak(p)
+                    if not caught: return xc
+                doEndIteration(xt)
+
+            printDone()
+            finish()
+            return xc
+        """
+        logger = logging.getLogger(
+            'SimPEG.Optimization.InexactGaussNewton_storeFactors.minimize')
+        logger.info('Starting to minimize')
+
+        self.evalFunction = evalFunction
+        self.startup(x0)
+        self.printInit()
+        while True:
+            logger.info('Starting minimization iteration')
+            self.doStartIteration()
+            logger.info('Evaluating fields, gradient and Hessian')
+            self.f, self.g, self.H = evalFunction(self.xc, return_g=True, return_H=True)
+            self.printIter()
+            if self.stoppingCriteria(): break
+            logger.info('Finding the search direction')
+            self.searchDirection = self.findSearchDirection()
+            del self.H #: Doing this saves memory, as it is not needed in the rest of the computations.
+            logger.info('Scaling the search direction')
+            p = self.scaleSearchDirection(self.searchDirection)
+            logger.info('Modifing the search direction')
+            xt, passLS = self.modifySearchDirection(p)
+            if not passLS:
+                logger.debug('Modifing search direction work')
+                xt, caught = self.modifySearchDirectionBreak(p)
+                if not caught: return self.xc
+            self.doEndIteration(xt)
+            if self.stopNextIteration: break
+
+        self.printDone()
+        self.finish()
+
+        return self.xc
+
+    @Utils.timeIt
+    def modifySearchDirection(self, p):
+        """modifySearchDirection(p)
+
+            **modifySearchDirection** changes the search direction based on some sort of linesearch or trust-region criteria.
+
+            By default, an Armijo backtracking linesearch is preformed with the following parameters:
+
+                * maxIterLS, the maximum number of linesearch iterations
+                * LSreduction, the expected reduction expected, default: 1e-4
+                * LSshorten, how much the step is reduced, default: 0.5
+
+            If the linesearch is completed, and a descent direction is found, passLS is returned as True.
+
+            Else, a modifySearchDirectionBreak call is preformed.
+
+            :param numpy.ndarray p: searchDirection
+            :rtype: tuple
+            :return: (xt, passLS) numpy.ndarray, bool
+        """
+        # Projected Armijo linesearch
+        logger = logging.getLogger(
+            'SimPEG.Optimization.Minimize.modifySearchDirection')
+        logger.debug('Modifing search direction')
+        self._LS_t = 1
+        self.iterLS = 0
+        # Clean the factors
+        for fact in self.parent.prob._factor_dict:
+            fact.clean()
+        self.parent.prob._factor_dict = None
+        # Scale the search direction
+        logger.debug('Starting linesearch')
+        while self.iterLS < self.maxIterLS:
+            self._LS_xt      = self.projection(self.xc + self._LS_t*p)
+            self._LS_ft      = self.evalFunction(self._LS_xt, return_g=False, return_H=False)
+            self._LS_descent = np.inner(self.g, self._LS_xt - self.xc)  # this takes into account multiplying by t, but is important for projection.
+            if self.stoppingCriteria(inLS=True): break
+            self.iterLS += 1
+            self._LS_t = self.LSshorten*self._LS_t
+            if self.debugLS:
+                if self.iterLS == 1: self.printInit(inLS=True)
+                self.printIter(inLS=True)
+
+        if self.debugLS and self.iterLS > 0: self.printDone(inLS=True)
+        logger.debug('Finished modifing search direction')
+        return self._LS_xt, self.iterLS < self.maxIterLS
+
+
 class InexactGaussNewton_eachFreq(InexactGaussNewton):
     """
         Same as InexactGaussNewton solver but it overrides
