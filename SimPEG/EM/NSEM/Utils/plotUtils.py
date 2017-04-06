@@ -738,7 +738,7 @@ def _get_section_data(
     data, sectDict, tensor, orientation, component,
     plot_error=False):
     """
-    Function for getting frequency map data
+    Function for getting frequency section
     """
 
     # Get the components
@@ -865,10 +865,15 @@ def _get_map_data(
     else:
         return (locs, plot_data)
 
+<<<<<<< HEAD
 
 def _get_station_data(
     data, location, tensor, orientation, component,
     plot_error=False):
+=======
+def _get_station_data(
+    data, location, orientation, component, plot_error=False):
+>>>>>>> nsem/dev
 
     # Get the components
     if component in ['app_res', 'phase', 'amplitude']:
@@ -926,6 +931,7 @@ def _get_station_data(
         return (freqs, plot_data, error)
     else:
         return (freqs, plot_data)
+
 
 
 def _get_plot_data(
@@ -1009,6 +1015,7 @@ def _extract_section_data(
         np.concatenate(data_list))
 
 
+
 def _extract_location_data(
     data, location, tensor, orientation, component,
     return_uncert=False):
@@ -1039,7 +1046,6 @@ def _extract_location_data(
         return (np.array(freq_list), np.concatenate(data_list),
                 np.concatenate(std_list), np.concatenate(floor_list))
     return (np.array(freq_list), np.concatenate(data_list))
-
 
 ## Hidden utility functions
 # Unique row function-should be moved to utils
