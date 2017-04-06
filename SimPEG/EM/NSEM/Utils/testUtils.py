@@ -124,8 +124,8 @@ def setupSimpegNSEM_ePrimSec(inputSetup, tf_type='Imp', singleFreq=False, expMap
     problem.pair(survey)
     problem.verbose = False
     try:
-        from pymatsolver import PardisoSolver
-        problem.Solver = PardisoSolver
+        from pymatsolver import Pardiso
+        problem.Solver = Pardiso
     except:
         pass
 
