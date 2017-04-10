@@ -45,9 +45,6 @@ def JvecAdjointTest(inputSetup, tf_type='All', freq=False):
 
 class NSEM_3D_AdjointTests(unittest.TestCase):
 
-    def setUp(self):
-        pass
-
     # Test the adjoint of Jvec and Jtvec
     def test_JvecAdjoint_Imp(self):self.assertTrue(JvecAdjointTest(NSEM.Utils.testUtils.halfSpace(1e-2),'Imp',.1))
     def test_JvecAdjoint_Tip(self):self.assertTrue(JvecAdjointTest(NSEM.Utils.testUtils.halfSpace(1e-2),'Tip',.1))
