@@ -510,8 +510,8 @@ class Update_IRLS(InversionDirective):
             # It is a Combo objective, so will have to loop
             self.ComboObjFun = True
 
-            # expose model (should be the same for all cases)
-            self.reg.expose('model')
+            # link model (should be the same for all cases)
+            self.reg.link('model')
 
         if self.mode == 1:
 

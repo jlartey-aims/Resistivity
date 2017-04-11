@@ -320,7 +320,7 @@ class TestBaseObjFct(unittest.TestCase):
 
 class ExposeTest(unittest.TestCase):
 
-    def test_expose_mapping_string(self):
+    def test_link_mapping_string(self):
         nP = 10
         m = np.random.rand(nP)
 
@@ -329,7 +329,7 @@ class ExposeTest(unittest.TestCase):
 
         phi3 = 2*phi1 + 3*phi2
 
-        phi3.expose('mapping')
+        phi3.link('mapping')
 
         phi3.mapping = Maps.ExpMap(nP=10)
 
@@ -346,7 +346,7 @@ class ExposeTest(unittest.TestCase):
             phi3.objfcts[1].mapping.__class__.__name__ == 'ExpMap'
         )
 
-    def test_expose_mapping_list(self):
+    def test_link_mapping_list(self):
         nP = 10
         m = np.random.rand(nP)
 
@@ -355,7 +355,7 @@ class ExposeTest(unittest.TestCase):
 
         phi3 = 2*phi1 + 3*phi2
 
-        phi3.expose(['mapping'])
+        phi3.link(['mapping'])
 
         phi3.mapping = Maps.LogMap(nP=10)
 
@@ -372,7 +372,7 @@ class ExposeTest(unittest.TestCase):
             phi3.objfcts[1].mapping.__class__.__name__ == 'LogMap'
         )
 
-    def test_expose_mapping_dict(self):
+    def test_link_mapping_dict(self):
         nP = 10
         m = np.random.rand(nP)
 
@@ -381,7 +381,7 @@ class ExposeTest(unittest.TestCase):
 
         phi3 = 2*phi1 + 3*phi2
 
-        phi3.expose({'mapping': Maps.ExpMap(nP=10)})
+        phi3.link({'mapping': Maps.ExpMap(nP=10)})
 
         # check that it is being propagated
         self.assertTrue(all([
@@ -408,10 +408,10 @@ class ExposeTest(unittest.TestCase):
         phi3 = 2*phi1 + 3*phi2
 
         with self.assertRaises(Exception):
-            phi3.expose('W')
-            phi3.expose('nP')
+            phi3.link('W')
+            phi3.link('nP')
 
-    def test_expose_all(self):
+    def test_link_all(self):
         nP = 10
         m = np.random.rand(nP)
 
@@ -422,10 +422,10 @@ class ExposeTest(unittest.TestCase):
 
         phi3 = 2*phi1 + 3*phi2
 
-        phi3.expose('all')
+        phi3.link('all')
         self.assertTrue(
             len(
-                set(phi3._exposed).difference(
+                set(phi3._linked).difference(
                     set(['x', 'y', 'z', 'mapping'])
                 )
             ) == 0
@@ -446,10 +446,10 @@ class ExposeTest(unittest.TestCase):
 
         phi3 = 2*phi1 + 3*phi2
         phi3.x=10
-        phi3.expose('all')
+        phi3.link('all')
 
         phi4 = phi1 + 2*phi3
-        phi4.expose('all')
+        phi4.link('all')
         phi4.x = 20
         print(phi2.x)
 
@@ -465,7 +465,7 @@ class ExposeTest(unittest.TestCase):
 
         reg3 = reg1 + reg2
 
-        reg3.expose('all')
+        reg3.link('all')
         reg3.mapping = Maps.ExpMap(mesh)
 
         for objfct in reg3.objfcts:

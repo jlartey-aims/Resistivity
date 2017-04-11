@@ -37,6 +37,8 @@ class BaseObjectiveFunction(Props.BaseSimPEG):
 
     _nP = None  #: number of parameters
 
+    _combo_link = None  #: combo objective function it is linked to
+
     def __init__(self, nP=None, **kwargs):
         if nP is not None:
             self._nP = nP
@@ -159,7 +161,7 @@ class BaseObjectiveFunction(Props.BaseSimPEG):
             objfct2 = 1 * objfct2
 
         objfctlist = self.objfcts + objfct2.objfcts
-        multipliers = self._multipliers + objfct2._multipliers
+        multipliers = self.multipliers + objfct2.multipliers
 
         return ComboObjectiveFunction(
             objfcts=objfctlist, multipliers=multipliers
@@ -203,12 +205,12 @@ class BaseObjectiveFunction(Props.BaseSimPEG):
 #         return object.__setattr__(self, name, value)
 
 
-class ExposedProperty(object):
+class LinkedProperty(object):
 
     def __init__(self, objfcts, prop, val=None, **kwargs):
         # only add functions with that property
         fctlist = [
-            fct for fct in objfcts if getattr(fct, prop, None) is not None
+            fct for fct in objfcts if hasattr(fct, prop)
         ]
         # print(
         #     'exposing {prop} for {fcts}'.format(
@@ -222,6 +224,9 @@ class ExposedProperty(object):
         if val is not None:
             self.val = self.__set__(None, val=val)  # go through setter
         else:
+            vals = [
+                getattr(fct, prop) for fct in objfcts
+            ]
             self.val = val  # skip setter
 
     def __get__(self, obj, objtype=None):
@@ -260,17 +265,17 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
 
     """
     _multiplier_types = (float, None, Utils.Zero) + integer_types  # Directive
-    _exposed = None  # Properties of lower objective functions that are exposed
+    _linked = None  # Properties of lower objective functions that are linked
 
     def __init__(self, objfcts=[], multipliers=None, **kwargs):
 
         self._nP = '*'
-        self._exposed = {}
+        self._linked = {}
 
         if multipliers is None:
             multipliers = len(objfcts)*[1]
 
-        assert(len(objfcts)==len(multipliers)), (
+        assert(len(objfcts) == len(multipliers)), (
             "Must have the same number of Objective Functions and Multipliers "
             "not {} and {}".format(len(objfcts), len(multipliers))
             )
@@ -309,23 +314,32 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
         validate_list(objfcts, multipliers)
 
         self.objfcts = objfcts
-        self.__multipliers = multipliers
+        self._multipliers = multipliers
 
         super(ComboObjectiveFunction, self).__init__(**kwargs)
 
     def __len__(self):
-        return len(self._multipliers)
+        return len(self.multipliers)
 
     def __getitem__(self, key):
-        return self._multipliers[key], self.objfcts[key]
+        return self.multipliers[key], self.objfcts[key]
 
     @property
     def __len__(self):
         return self.objfcts.__len__
 
     @property
-    def _multipliers(self):
-        return self.__multipliers
+    def multipliers(self):
+        return self._multipliers
+
+    @multipliers.setter
+    def multipliers(self, val):
+        print(val)
+        assert type(val) in self._multiplier_types, (
+            'multiplier must be in {}, not {}'.format(
+                self._multiplier_types, type(val)
+            )
+        )
 
     def __call__(self, m, f=None):
 
@@ -400,15 +414,15 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
                 W.append(curW)
         return sp.vstack(W)
 
-    def expose(self, properties):
-        # if 'all', exposes all top level properties in the objective function
+    def link(self, properties):
+        # if 'all', links all top level properties in the objective function
         # list
         if isinstance(properties, string_types) and properties.lower() == 'all':
             prop_set = []
             for objfct in self.objfcts:
                 prop_set += [
                     prop for prop in dir(objfct)
-                    if prop[0] != '_' and  # only expose top level properties
+                    if prop[0] != '_' and  # only link top level properties
                     isinstance(
                         getattr(type(objfct), prop, None), property
                     ) and
@@ -416,7 +430,7 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
                         # don't try and over-write things like nP
                         # which are properties on this class
                         getattr(type(self), prop, None) is None or
-                        prop in self._exposed.keys()
+                        prop in self._linked.keys()
                     )
                 ]
             properties = list(set(prop_set))
@@ -429,16 +443,16 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
         if isinstance(properties, list):
             properties = dict(zip(properties, len(properties)*[None]))
 
-        # go through the properties list and expose them
-        for prop, val in properties.items(): # skip if already in self._exposed
+        # go through the properties list and link them
+        for prop, val in properties.items(): # skip if already in self._linked
             if getattr(type(self), prop, None) is not None:
                 raise Exception(
-                    "can't expose {} as it is a property on the combo "
+                    "can't link {} as it is a property on the combo "
                     "objective function".format(prop)
                 )
             else:
-                new_prop = ExposedProperty(self.objfcts, prop, val=val)
-                self._exposed[prop] = new_prop
+                new_prop = LinkedProperty(self.objfcts, prop, val=val)
+                self._linked[prop] = new_prop
                 setattr(self, prop, new_prop)
 
     def __setattr__(self, name, value):
@@ -447,15 +461,15 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
         except AttributeError:
             pass
         else:
-            exposed = object.__getattribute__(self, '_exposed')
-            if exposed is not None and name in exposed.keys():
-                return exposed[name].__set__(self, value)
+            linked = object.__getattribute__(self, '_linked')
+            if linked is not None and name in linked.keys():
+                return linked[name].__set__(self, value)
         return object.__setattr__(self, name, value)
 
     def __getattribute__(self, name):
-        exposed = object.__getattribute__(self, '_exposed')
-        if exposed is not None and name in exposed.keys():
-            return exposed[name].__get__(self, self.__class__)
+        linked = object.__getattribute__(self, '_linked')
+        if linked is not None and name in linked.keys():
+            return linked[name].__get__(self, self.__class__)
         return object.__getattribute__(self, name)
 
 
