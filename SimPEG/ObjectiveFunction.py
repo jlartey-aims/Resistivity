@@ -161,7 +161,7 @@ class BaseObjectiveFunction(Props.BaseSimPEG):
             objfct2 = 1 * objfct2
 
         objfctlist = self.objfcts + objfct2.objfcts
-        multipliers = self.multipliers + objfct2.multipliers
+        multipliers = self._multipliers + objfct2._multipliers
 
         return ComboObjectiveFunction(
             objfcts=objfctlist, multipliers=multipliers
@@ -314,7 +314,7 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
         validate_list(objfcts, multipliers)
 
         self.objfcts = objfcts
-        self._multipliers = multipliers
+        self.__multipliers = multipliers
 
         super(ComboObjectiveFunction, self).__init__(**kwargs)
 
@@ -322,24 +322,25 @@ class ComboObjectiveFunction(BaseObjectiveFunction):
         return len(self.multipliers)
 
     def __getitem__(self, key):
-        return self.multipliers[key], self.objfcts[key]
+        return self._multipliers[key], self.objfcts[key]
 
     @property
     def __len__(self):
         return self.objfcts.__len__
 
     @property
-    def multipliers(self):
-        return self._multipliers
+    def _multipliers(self):
+        return self.__multipliers
 
-    @multipliers.setter
-    def multipliers(self, val):
-        print(val)
-        assert type(val) in self._multiplier_types, (
-            'multiplier must be in {}, not {}'.format(
-                self._multiplier_types, type(val)
-            )
-        )
+    # @multipliers.setter
+    # def multipliers(self, val):
+    #     print(val)
+    #     assert type(val) in self._multiplier_types, (
+    #         'multiplier must be in {}, not {}'.format(
+    #             self._multiplier_types, type(val)
+    #         )
+    #     )
+    #     self._multipliers = val
 
     def __call__(self, m, f=None):
 
