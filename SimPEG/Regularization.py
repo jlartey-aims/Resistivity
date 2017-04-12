@@ -994,6 +994,7 @@ class Sparse(Simple):
             else:
                 m = self.mapping * (self.model)
 
+
             mats = []
             for imodel in range(self.nModels):
 

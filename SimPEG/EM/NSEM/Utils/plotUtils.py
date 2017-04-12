@@ -865,6 +865,7 @@ def _get_map_data(
     else:
         return (locs, plot_data)
 
+
 def _get_station_data(
     data, location, tensor, orientation, component,
     plot_error=False):
