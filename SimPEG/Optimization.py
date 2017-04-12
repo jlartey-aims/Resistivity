@@ -942,24 +942,34 @@ class InexactGaussNewton_storeFactors(InexactGaussNewton):
         logger.debug('Modifing search direction')
         self._LS_t = 1
         self.iterLS = 0
-        # Clean the factors
-        for fact in self.parent.prob._factor_dict.values():
-            fact.clean()
-        self.parent.prob._factor_dict = None
+
         # Scale the search direction
         logger.debug('Starting linesearch')
         while self.iterLS < self.maxIterLS:
-            self._LS_xt      = self.projection(self.xc + self._LS_t*p)
-            self._LS_ft      = self.evalFunction(self._LS_xt, return_g=False, return_H=False)
-            self._LS_descent = np.inner(self.g, self._LS_xt - self.xc)  # this takes into account multiplying by t, but is important for projection.
-            if self.stoppingCriteria(inLS=True): break
+            # Clean the factors
+            for fact in self.parent.prob._factor_dict.values():
+                fact.clean()
+            self.parent.prob._factor_dict = None
+            logger.debug(
+                'Working on line-search iteration number {}'.format(
+                    self.iterLS))
+            self._LS_xt = self.projection(self.xc + self._LS_t * p)
+            self._LS_ft = self.evalFunction(
+                self._LS_xt, return_g=False, return_H=False)
+            self._LS_descent = np.inner(self.g, self._LS_xt - self.xc)
+            # this takes into account multiplying by t,
+            # but is important for projection.
+            if self.stoppingCriteria(inLS=True):
+                break
             self.iterLS += 1
-            self._LS_t = self.LSshorten*self._LS_t
+            self._LS_t = self.LSshorten * self._LS_t
             if self.debugLS:
-                if self.iterLS == 1: self.printInit(inLS=True)
+                if self.iterLS == 1:
+                    self.printInit(inLS=True)
                 self.printIter(inLS=True)
 
-        if self.debugLS and self.iterLS > 0: self.printDone(inLS=True)
+        if self.debugLS and self.iterLS > 0:
+            self.printDone(inLS=True)
         logger.debug('Finished modifing search direction')
         return self._LS_xt, self.iterLS < self.maxIterLS
 
