@@ -973,6 +973,21 @@ class InexactGaussNewton_storeFactors(InexactGaussNewton):
         logger.debug('Finished modifing search direction')
         return self._LS_xt, self.iterLS < self.maxIterLS
 
+    @Utils.callHooks('finish')
+    def finish(self):
+        """finish()
+
+            **finish** is called at the end of the optimization.
+
+            :rtype: None
+            :return: None
+
+        """
+        if self.parent.prob._factor_dict is not None:
+            for fact in self.parent.prob._factor_dict.values():
+                fact.clean()
+            self.parent.prob._factor_dict = None
+
 
 class InexactGaussNewton_eachFreq(InexactGaussNewton):
     """

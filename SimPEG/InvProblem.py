@@ -180,6 +180,47 @@ class storeFactors_InvProblem(BaseInvProblem):
     def __init__(self, dmisfit, reg, opt, **kwargs):
         super(storeFactors_InvProblem, self).__init__(dmisfit, reg, opt, **kwargs)
 
+
+    def getFields(self, m, store=False, deleteWarmstart=True):
+        """
+        Function to get the fields
+        """
+
+        logger = logging.getLogger(
+            'SimPEG.InvProblem.storeFactors_InvProblem.getFields')
+        logger.info('Starting calculations ')
+
+        # Set f to None
+        f = None
+        # Check if invProb is warmstarting
+        for mtest, u_ofmtest in self.warmstart:
+            if m is mtest:
+                f = u_ofmtest
+                if self.debug:
+                    print('InvProb is Warm Starting!')
+                break
+
+        # Calcualte the factors if the aren't there
+        if self.prob._factor_dict is None:
+            self.prob._factor_dict = {}
+            for freq in self.prob.survey.freqs:
+                logger.debug('Starting factoring for {:.3e}'.format(freq))
+                # Get the system
+                A = self.prob.getA(freq)
+                # Factor  the system
+                Ainv = self.prob.Solver(A, **self.prob.solverOpts)
+                self.prob._factor_dict[freq] = Ainv
+
+        if f is None:
+            f = self.prob.fields(m)
+
+        if deleteWarmstart:
+            self.warmstart = []
+        if store:
+            self.warmstart += [(m, f)]
+
+        return f
+
     @Utils.timeIt
     def evalFunction(self, m, return_g=True, return_H=True):
         """evalFunction(m, return_g=True, return_H=True)
@@ -195,17 +236,8 @@ class storeFactors_InvProblem(BaseInvProblem):
 
         # Set the model to the problem
         self.prob.model = m
-        # Calcualte the factors if the aren't there
-        if self.prob._factor_dict is None:
-            self.prob._factor_dict = {}
-            for freq in self.prob.survey.freqs:
-                logger.debug('Starting factoring for {:.3e}'.format(freq))
-                # Get the system
-                A = self.prob.getA(freq)
-                # Factor  the system
-                Ainv = self.prob.Solver(A, **self.prob.solverOpts)
-                self.prob._factor_dict[freq] = Ainv
 
+        # Get the fields
         f = self.getFields(m, store=(return_g is False and return_H is False))
 
         logger.debug('Calculate the objective function parts')
