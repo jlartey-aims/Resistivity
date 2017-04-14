@@ -195,6 +195,7 @@ class storeFactors_InvProblem(BaseInvProblem):
 
         # Calcualte the factors if the aren't there
         if self.prob._factor_dict is None:
+            self.prob.model = m
             self.prob._factor_dict = {}
             for freq in self.prob.survey.freqs:
                 logger.debug('Starting factoring for {:.3e}'.format(freq))
