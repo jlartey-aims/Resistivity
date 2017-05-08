@@ -865,15 +865,10 @@ def _get_map_data(
     else:
         return (locs, plot_data)
 
-<<<<<<< HEAD
-
 def _get_station_data(
     data, location, tensor, orientation, component,
     plot_error=False):
-=======
-def _get_station_data(
-    data, location, orientation, component, plot_error=False):
->>>>>>> nsem/dev
+
 
     # Get the components
     if component in ['app_res', 'phase', 'amplitude']:

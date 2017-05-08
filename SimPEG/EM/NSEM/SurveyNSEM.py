@@ -128,11 +128,15 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
             # Assume the same locs for all RX
             locs = src.rxList[0].locs
             if locs.shape[1] == 1:
-                locs = np.hstack((np.array([[0.0,0.0]]),locs))
+                locs = np.hstack((np.array([[0.0,0.0]]), locs))
             elif locs.shape[1] == 2:
-                locs = np.hstack((np.array([[0.0]]),locs))
-            tArrRec = np.concatenate((src.freq*np.ones((locs.shape[0],1)),locs,np.nan*np.ones((locs.shape[0],12))),axis=1).view(dtRI)
-            # np.array([(src.freq,rx.locs[0,0],rx.locs[0,1],rx.locs[0,2],np.nan ,np.nan ,np.nan ,np.nan ,np.nan ,np.nan ,np.nan ,np.nan ) for rx in src.rxList],dtype=dtRI)
+                locs = np.hstack((np.array([[0.0]]), locs))
+            tArrRec = np.concatenate(
+                (
+                    src.freq * np.ones((locs.shape[0], 1)),
+                    locs,
+                    np.nan * np.ones((locs.shape[0], len(dtRI) - 4))
+                ), axis=1).view(dtRI)
             # Get the type and the value for the DataNSEM object as a list
             # Insert the values to the temp array
             for rx in src.rxList:
@@ -143,12 +147,13 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
                 elif isinstance(rx, Point_tipper3D):
                     zt_type = 't'
                 else:
-                    raise TypeError('Not implement for a receiver type {}'.format(str(rx)))
+                    raise TypeError(
+                        'Not implement for a receiver type {}'.format(str(rx)))
                 key = zt_type + rx.orientation + rx.component[0]
-                tArrRec[key] = mkvc(self[src,rx],2)
+                tArrRec[key] = mkvc(self[src, rx], 2)
 
             try:
-                outTemp = recFunc.stack_arrays((outTemp,tArrRec))
+                outTemp = recFunc.stack_arrays((outTemp, tArrRec))
             except NameError:
                 outTemp = tArrRec.copy()
 
@@ -157,12 +162,16 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
             elif 'Complex' in returnType:
                 # Add the real and imaginary to a complex number
                 outArr = np.empty(outTemp.shape, dtype=dtCP)
-                for comp in ['freq','x','y','z']:
+                for comp in ['freq', 'x', 'y', 'z']:
                     outArr[comp] = outTemp[comp].copy()
-                for comp in ['zxx','zxy','zyx','zyy','tzx','tzy','mxx','mxy','myx','myy']:
-                    outArr[comp] = outTemp[comp+'r'].copy() + 1j*outTemp[comp+'i'].copy()
+                for comp in ['zxx', 'zxy', 'zyx', 'zyy', 'tzx', 'tzy',
+                             'mxx', 'mxy', 'myx', 'myy']:
+                    outArr[comp] = (
+                        outTemp[comp + 'r'].copy() +
+                        1j * outTemp[comp + 'i'].copy())
             else:
-                raise NotImplementedError('{:s} is not implemented, as to be RealImag or Complex.')
+                raise NotImplementedError(
+                    '{:s} is not implemented, as to be RealImag or Complex.')
 
         # Return
         return outArr

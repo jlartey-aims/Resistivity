@@ -1043,7 +1043,7 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
             Mij = self.eval(src, self.mesh, self.f, True) + schmucker_corr
             # Calculate the complex derivative
             rx_deriv_real = self._Hd * (MijN_uV - self._sDiag(Mij) * self._Hd_uV(v))
-            rx_deriv_component = SimPEG.np.array(getattr(rx_deriv_real, self.component))
+            rx_deriv_component = np.array(getattr(rx_deriv_real, self.component))
 
         return rx_deriv_component
 
