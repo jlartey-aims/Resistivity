@@ -315,10 +315,10 @@ class SaveOutputDictEveryIteration(SaveEveryIteration):
         outDict['beta'] = self.invProb.beta
         outDict['phi_d'] = self.invProb.phi_d
         outDict['phi_m'] = self.invProb.phi_m
-        outDict['phi_ms'] = self.reg._evalSmall(self.invProb.model)
-        outDict['phi_mx'] = self.reg._evalSmoothx(self.invProb.model)
-        outDict['phi_my'] = self.reg._evalSmoothy(self.invProb.model) if self.prob.mesh.dim >= 2 else 'NaN'
-        outDict['phi_mz'] = self.reg._evalSmoothz(self.invProb.model) if self.prob.mesh.dim == 3 else 'NaN'
+        outDict['phi_ms'] = self.reg.objfcts[0](self.invProb.model)
+        outDict['phi_mx'] = self.reg.objfcts[1](self.invProb.model)
+        outDict['phi_my'] = self.reg.objfcts[3](self.invProb.model) if self.prob.mesh.dim >= 2 else 'NaN'
+        outDict['phi_mz'] = self.reg.objfcts[5](self.invProb.model) if self.prob.mesh.dim == 3 else 'NaN'
         outDict['f'] = self.opt.f
         outDict['m'] = self.invProb.model
         outDict['dpred'] = self.invProb.dpred

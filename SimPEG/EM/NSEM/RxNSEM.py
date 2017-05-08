@@ -772,119 +772,127 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
     @property
     def Pbx_num(self):
         if getattr(self, '_Pbx_num', None) is None:
-            self._Pbx_num = self._mesh.getInterpolationMat(self._loc_numerator(), 'Fx')
+            self._Pbx_num = self._mesh.getInterpolationMat(
+                self._loc_numerator(), 'Fx')
         return self._Pbx_num
 
     @property
     def Pby_num(self):
         if getattr(self, '_Pby_num', None) is None:
-            self._Pby_num = self._mesh.getInterpolationMat(self._loc_numerator(), 'Fy')
+            self._Pby_num = self._mesh.getInterpolationMat(
+                self._loc_numerator(), 'Fy')
         return self._Pby_num
-
 
     @property
     def _hx_num_px(self):
-        return self.Pbx_num*self.f[self.src, 'b_px']/mu_0
+        return self.Pbx_num * self.f[self.src, 'b_px'] / mu_0
 
     @property
     def _hy_num_px(self):
-        return self.Pby_num*self.f[self.src, 'b_px']/mu_0
+        return self.Pby_num * self.f[self.src, 'b_px'] / mu_0
 
     @property
     def _hx_num_py(self):
-        return self.Pbx_num*self.f[self.src, 'b_py']/mu_0
+        return self.Pbx_num * self.f[self.src, 'b_py'] / mu_0
 
     @property
     def _hy_num_py(self):
-        return self.Pby_num*self.f[self.src, 'b_py']/mu_0
+        return self.Pby_num * self.f[self.src, 'b_py'] / mu_0
 
     # Get the derivatives
 
     def _hx_num_px_u(self, vec):
-        return self.Pbx_num*self.f._b_pxDeriv_u(self.src, vec)/mu_0
+        return self.Pbx_num * self.f._b_pxDeriv_u(self.src, vec) / mu_0
 
     def _hy_num_px_u(self, vec):
-        return self.Pby_num*self.f._b_pxDeriv_u(self.src, vec)/mu_0
+        return self.Pby_num * self.f._b_pxDeriv_u(self.src, vec) / mu_0
 
     def _hx_num_py_u(self, vec):
-        return self.Pbx_num*self.f._b_pyDeriv_u(self.src, vec)/mu_0
+        return self.Pbx_num * self.f._b_pyDeriv_u(self.src, vec) / mu_0
 
     def _hy_num_py_u(self, vec):
-        return self.Pby_num*self.f._b_pyDeriv_u(self.src, vec)/mu_0
+        return self.Pby_num * self.f._b_pyDeriv_u(self.src, vec) / mu_0
 
     # Define the components of the derivative
     # Overwrite the base
     @property
     def _Hd(self):
-        return self._sDiag(1./(
-            self._sDiag(self._hx_px)*self._hy_py -
-            self._sDiag(self._hx_py)*self._hy_px
+        return self._sDiag(1. / (
+            self._sDiag(self._hx_px) * self._hy_py -
+            self._sDiag(self._hx_py) * self._hy_px
         ))
 
     def _Hd_uV(self, v):
         return (
-            self._sDiag(self._hy_py)*self._hx_px_u(v) +
-            self._sDiag(self._hx_px)*self._hy_py_u(v) -
-            self._sDiag(self._hx_py)*self._hy_px_u(v) -
-            self._sDiag(self._hy_px)*self._hx_py_u(v)
+            self._sDiag(self._hy_py) * self._hx_px_u(v) +
+            self._sDiag(self._hx_px) * self._hy_py_u(v) -
+            self._sDiag(self._hx_py) * self._hy_px_u(v) -
+            self._sDiag(self._hy_px) * self._hx_py_u(v)
         )
 
     @property
     def _ahx_num_px(self):
-        return mkvc(mkvc(self.f[self.src, 'b_px'], 2).T/mu_0*self.Pbx_num.T)
+        return mkvc(
+            mkvc(self.f[self.src, 'b_px'], 2).T / mu_0 * self.Pbx_num.T)
 
     @property
     def _ahy_num_px(self):
-        return mkvc(mkvc(self.f[self.src, 'b_px'], 2).T/mu_0*self.Pby_num.T)
+        return mkvc(
+            mkvc(self.f[self.src, 'b_px'], 2).T / mu_0 * self.Pby_num.T)
 
     @property
     def _ahx_num_py(self):
-        return mkvc(mkvc(self.f[self.src, 'b_py'], 2).T/mu_0*self.Pbx_num.T)
+        return mkvc(
+            mkvc(self.f[self.src, 'b_py'], 2).T / mu_0 * self.Pbx_num.T)
 
     @property
     def _ahy_num_py(self):
-        return mkvc(mkvc(self.f[self.src, 'b_py'], 2).T/mu_0*self.Pby_num.T)
+        return mkvc(
+            mkvc(self.f[self.src, 'b_py'], 2).T / mu_0 * self.Pby_num.T)
 
     # NOTE: need to add a .T at the end for the output to be (nU,)
     def _ahx_num_px_u(self, vec):
         """
         """
         # vec is (nD,) and returns a (nU,)
-        return self.f._b_pxDeriv_u(self.src, self.Pbx_num.T*mkvc(vec,), adjoint=True)/mu_0
+        return self.f._b_pxDeriv_u(
+            self.src, self.Pbx_num.T * mkvc(vec,), adjoint=True) / mu_0
 
     def _ahy_num_px_u(self, vec):
         """
         """
         # vec is (nD,) and returns a (nU,)
-        return self.f._b_pxDeriv_u(self.src, self.Pby_num.T*mkvc(vec,), adjoint=True)/mu_0
+        return self.f._b_pxDeriv_u(
+            self.src, self.Pby_num.T * mkvc(vec,), adjoint=True) / mu_0
 
     def _ahx_num_py_u(self, vec):
         """
         """
         # vec is (nD,) and returns a (nU,)
-        return self.f._b_pyDeriv_u(self.src, self.Pbx_num.T*mkvc(vec,), adjoint=True)/mu_0
+        return self.f._b_pyDeriv_u(
+            self.src, self.Pbx_num.T * mkvc(vec,), adjoint=True) / mu_0
 
     def _ahy_num_py_u(self, vec):
         """
         """
         # vec is (nD,) and returns a (nU,)
-        return self.f._b_pyDeriv_u(self.src, self.Pby_num.T*mkvc(vec,), adjoint=True)/mu_0
-
+        return self.f._b_pyDeriv_u(
+            self.src, self.Pby_num.T * mkvc(vec,), adjoint=True) / mu_0
 
     # Define the components of the derivative
     @property
     def _aHd(self):
-        return self._sDiag(1./(
-            self._sDiag(self._ahx_px)*self._ahy_py -
-            self._sDiag(self._ahx_py)*self._ahy_px
+        return self._sDiag(1. / (
+            self._sDiag(self._ahx_px) * self._ahy_py -
+            self._sDiag(self._ahx_py) * self._ahy_px
         ))
 
     def _aHd_uV(self, x):
         return (
-            self._ahx_px_u(self._sDiag(self._ahy_py)*x) +
-            self._ahx_px_u(self._sDiag(self._ahy_py)*x) -
-            self._ahy_px_u(self._sDiag(self._ahx_py)*x) -
-            self._ahx_py_u(self._sDiag(self._ahy_px)*x)
+            self._ahx_px_u(self._sDiag(self._ahy_py) * x) +
+            self._ahx_px_u(self._sDiag(self._ahy_py) * x) -
+            self._ahy_px_u(self._sDiag(self._ahx_py) * x) -
+            self._ahx_py_u(self._sDiag(self._ahy_px) * x)
         )
 
     def eval(self, src, mesh, f, return_complex=False):
@@ -894,7 +902,8 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
         Uses Schmucker convention,
 
         :param SrcNSEM src: The source of the fields to project
-        :param SimPEG.Mesh.TensorMesh mesh: Mesh defining the topology of the problem
+        :param discretize.TensorMesh mesh:
+                Mesh defining the topology of the problem
         :param FieldsNSEM f: Natural source fields object to project
         :rtype: numpy.array
         :return: Evaluated component of the horizontal magnetic transfer data
@@ -907,16 +916,20 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
         self.f = f
 
         if 'xx' in self.orientation:
-            Mij = ( self._hx_num_px * self._hy_py - self._hx_num_py * self._hy_px)
+            Mij = (
+                self._hx_num_px * self._hy_py - self._hx_num_py * self._hy_px)
             schmucker_corr = 1.
         elif 'xy' in self.orientation:
-            Mij = (-self._hx_num_px * self._hx_py + self._hx_num_py * self._hx_px)
+            Mij = (
+                -self._hx_num_px * self._hx_py + self._hx_num_py * self._hx_px)
             schmucker_corr = 0.
         elif 'yx' in self.orientation:
-            Mij = ( self._hy_num_px * self._hy_py - self._hy_num_py * self._hy_px)
+            Mij = (
+                self._hy_num_px * self._hy_py - self._hy_num_py * self._hy_px)
             schmucker_corr = 0.
         elif 'yy' in self.orientation:
-            Mij = (-self._hy_num_px * self._hx_py + self._hy_num_py * self._hx_px)
+            Mij = (
+                -self._hy_num_px * self._hx_py + self._hy_num_py * self._hx_px)
             schmucker_corr = 1.
 
         # Evaluate
@@ -932,11 +945,12 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
         The derivative of the projection wrt u
 
         :param SimPEG.EM.NSEM.SrcNSEM src: NSEM source
-        :param SimPEG.Mesh.TensorMesh mesh: Mesh defining the topology of the problem
+        :param BaseMesh mesh: Mesh defining the topology of the problem
         :param SimPEG.EM.NSEM.FieldsNSEM f: NSEM fields object of the source
         :param numpy.ndarray v: A vector of size
         :rtype: numpy.array
-        :return: Calculated derivative (nD,) (adjoint=False) and (nP,2) (adjoint=True)
+        :return:
+            Calculated derivative (nD,) (adjoint=False) and (nP,2) (adjoint=True)
             for both polarizations
         """
         self.src = src
@@ -946,16 +960,16 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
         if adjoint:
             if 'xx' in self.orientation:
                 Mij = self._sDiag(self._aHd * (
-                    self._sDiag(self._ahy_py)*self._ahx_num_px -
-                    self._sDiag(self._ahy_px)*self._ahx_num_py
+                    self._sDiag(self._ahy_py) * self._ahx_num_px -
+                    self._sDiag(self._ahy_px) * self._ahx_num_py
                 ))
 
                 def MijN_uV(x):
                     return (
-                        self._ahx_num_px_u(self._sDiag(self._ahy_py)*x) +
-                        self._ahy_py_u(self._sDiag(self._ahx_num_px)*x) -
-                        self._ahy_px_u(self._sDiag(self._ahx_num_py)*x) -
-                        self._ahx_num_py_u(self._sDiag(self._ahy_px)*x)
+                        self._ahx_num_px_u(self._sDiag(self._ahy_py) * x) +
+                        self._ahy_py_u(self._sDiag(self._ahx_num_px) * x) -
+                        self._ahy_px_u(self._sDiag(self._ahx_num_py) * x) -
+                        self._ahx_num_py_u(self._sDiag(self._ahy_px) * x)
                     )
             elif 'xy' in self.orientation:
                 Mij = self._sDiag(self._aHd * (
@@ -965,39 +979,40 @@ class Point_horizontalmagvar3D(BaseRxNSEM_Point):
 
                 def MijN_uV(x):
                     return (
-                        -self._ahx_num_px_u(self._sDiag(self._ahx_py)*x) -
-                        self._ahx_py_u(self._sDiag(self._ahx_num_px)*x) +
-                        self._ahx_px_u(self._sDiag(self._ahx_num_py)*x) +
-                        self._ahx_num_py_u(self._sDiag(self._ahx_px)*x)
+                        -self._ahx_num_px_u(self._sDiag(self._ahx_py) * x) -
+                        self._ahx_py_u(self._sDiag(self._ahx_num_px) * x) +
+                        self._ahx_px_u(self._sDiag(self._ahx_num_py) * x) +
+                        self._ahx_num_py_u(self._sDiag(self._ahx_px) * x)
                     )
             elif 'yx' in self.orientation:
-                Mij = self._sDiag(self._aHd*(
-                    self._sDiag(self._ahy_py)*self._ahy_num_px -
-                    self._sDiag(self._ahy_px)*self._ahy_num_py
+                Mij = self._sDiag(self._aHd * (
+                    self._sDiag(self._ahy_py) * self._ahy_num_px -
+                    self._sDiag(self._ahy_px) * self._ahy_num_py
                 ))
 
                 def MijN_uV(x):
                     return (
-                        self._ahy_num_px_u(self._sDiag(self._ahy_py)*x) +
-                        self._ahy_py_u(self._sDiag(self._ahy_num_px)*x) -
-                        self._ahy_px_u(self._sDiag(self._ahy_num_py)*x) -
-                        self._ahy_num_py_u(self._sDiag(self._ahy_px)*x)
+                        self._ahy_num_px_u(self._sDiag(self._ahy_py) * x) +
+                        self._ahy_py_u(self._sDiag(self._ahy_num_px) * x) -
+                        self._ahy_px_u(self._sDiag(self._ahy_num_py) * x) -
+                        self._ahy_num_py_u(self._sDiag(self._ahy_px) * x)
                     )
             elif 'yy' in self.orientation:
-                Mij = self._sDiag(self._aHd*(
-                    -self._sDiag(self._ahx_py)*self._ahy_num_px +
-                    self._sDiag(self._ahx_px)*self._ahy_num_py))
+                Mij = self._sDiag(self._aHd * (
+                    -self._sDiag(self._ahx_py) * self._ahy_num_px +
+                    self._sDiag(self._ahx_px) * self._ahy_num_py))
 
                 def MijN_uV(x):
                     return (
-                        -self._ahy_num_px_u(self._sDiag(self._ahx_py)*x) -
-                        self._ahx_py_u(self._sDiag(self._ahy_num_px)*x) +
-                        self._ahx_px_u(self._sDiag(self._ahy_num_py)*x) +
-                        self._ahy_num_py_u(self._sDiag(self._ahx_px)*x)
+                        -self._ahy_num_px_u(self._sDiag(self._ahx_py) * x) -
+                        self._ahx_py_u(self._sDiag(self._ahy_num_px) * x) +
+                        self._ahx_px_u(self._sDiag(self._ahy_num_py) * x) +
+                        self._ahy_num_py_u(self._sDiag(self._ahx_px) * x)
                     )
 
             # Calculate the complex derivative
-            rx_deriv_real = MijN_uV(self._aHd*v) - self._aHd_uV(Mij.T*self._aHd*v)
+            rx_deriv_real = MijN_uV(
+                self._aHd * v) - self._aHd_uV(Mij.T * self._aHd * v)
             # NOTE: Need to reshape the output to go from 2*nU array to a (nU,2) matrix for each polarization
             # rx_deriv_real = np.hstack((mkvc(rx_deriv_real[:len(rx_deriv_real)/2],2),mkvc(rx_deriv_real[len(rx_deriv_real)/2::],2)))
             rx_deriv_real = rx_deriv_real.reshape((2, self.mesh.nE)).T
