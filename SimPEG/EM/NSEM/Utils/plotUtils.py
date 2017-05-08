@@ -160,6 +160,7 @@ class tip_amp_station_plot(Base_DataNSEM_plots):
                                     ax=axes[1], errorbars=False,
                                     comp_plot_dict=dd_kwargs)
 
+
 class tip_complex_station_plot(Base_DataNSEM_plots):
     """
     Class for setting up 2 axes figure with:
@@ -181,9 +182,10 @@ class tip_complex_station_plot(Base_DataNSEM_plots):
 
         for ax in self.axes:
             ax.set_xscale('log')
+            ax.set_yscale('symlog', linthreshy=1e-3)
 
         self.axes[0].invert_xaxis()
-        self.axes[0].set_yscale('log')
+
         # Set labels
         self.axes[0].set_xlabel('Frequency [Hz]')
         self.axes[1].set_xlabel('Frequency [Hz]')
@@ -204,37 +206,42 @@ class tip_complex_station_plot(Base_DataNSEM_plots):
         axes = self.axes
 
         # Set keyword arguments
-        st_kwargs = {'marker': '_', 'ls': 'None'}
-        eb_kwargs = {'ls': 'None'}
+        st_kwargs = DEFAULT_COMP_DICT
         # Pop the data from the list
         data = data_list[0]
 
         # Apparent resistivity
-        data.plot_tip_amp(location, ['zx', 'zy'],
-                          ax=axes[0], errorbars=True)
-        data.station_errorbars(
-            location, 'T', ['zx', 'zy'], 'real',
-            ax=axes[0], **st_kwargs)
-        # Apparent phase
-        data.station_errorbars(
-            location, 'T', ['zx', 'zy'], 'imag',
-            ax=axes[1], **st_kwargs)
+        for comp in ['zx', 'zy']:
+            data.station_errorbars(
+                location, 'T', comp, 'real',
+                ax=axes[0], **st_kwargs[comp])
+            # Apparent phase
+            data.station_errorbars(
+                location, 'T', comp, 'imag',
+                ax=axes[1], **st_kwargs[comp])
 
         # Plot the additional data
         for other_data in data_list[1::]:
             # Need add symbol generation
-            dd_kwargs = {'zx': {'marker': '.', 'ls': '--'},
-                         'zy': {'marker': '.', 'ls': '--'}}
+            comp_plot_dict = {
+                'zx': {'marker': '.', 'ls': '--'},
+                'zy': {'marker': '.', 'ls': '--'}}
 
-            # Apparent resistivity
-            other_data.station_component(
-                location, 'T', ['zx', 'zy'], 'real',
-                ax=axes[0], **st_kwargs)
+            for comp in ['zx', 'zy']:
+                dd_kwargs = _validate_kwargs(
+                comp_plot_dict[comp], DEFAULT_COMP_DICT[comp])
+                # Real part
+                other_data.station_component(
+                    location, 'T', comp, 'real',
+                    ax=axes[0], **dd_kwargs)
 
-            # Apparent phase
-            other_data.station_component(
-                location, 'T', ['zx', 'zy'], 'imag',
-                ax=axes[1], **st_kwargs)
+                # Imaginary part
+                other_data.station_component(
+                    location, 'T', comp, 'imag',
+                    ax=axes[1], **dd_kwargs)
+
+        axes[1].legend(
+            loc='center left', bbox_to_anchor=(1, 0.5))
 
 class app_res_phs_imp_station_plot(Base_DataNSEM_plots):
     """
@@ -247,7 +254,6 @@ class app_res_phs_imp_station_plot(Base_DataNSEM_plots):
 
     def __init__(self):
         super(app_res_phs_imp_station_plot, self).__init__()
-
 
     def setup(self):
         """
@@ -290,8 +296,7 @@ class app_res_phs_imp_station_plot(Base_DataNSEM_plots):
         axes = self.axes
 
         # Set keyword arguments
-        st_kwargs = {'marker':'_', 'ls':'None'}
-        eb_kwargs = {'ls':'None'}
+        st_kwargs = {'marker': '_', 'ls': 'None'}
         # Pop the data from the list
         data = data_list[0]
 
@@ -341,7 +346,97 @@ class app_res_phs_imp_station_plot(Base_DataNSEM_plots):
                                     ['xx', 'xy', 'yx', 'yy'],
                                     ax=axes[3], errorbars=False,
                                     comp_plot_dict=dd_kwargs)
+        # axes[3].legend(
+        #     loc='center left', bbox_to_anchor=(1, 1))
 
+
+class hmv_complex_station_plot(Base_DataNSEM_plots):
+    """
+    Class for setting up 2 axes figure with:
+        hmv real | hmv imag
+        setup.
+    """
+
+    def __init__(self):
+        super(hmv_complex_station_plot, self).__init__()
+
+
+    def setup(self):
+        """
+        Setup a station data plot figure.
+        """
+        self.fig, axes_temp = plt.subplots(1, 2, sharex=True, sharey=True)
+        self.axes = axes_temp.ravel().tolist()
+        self.fig.set_size_inches((13.5, 4.0))
+
+        for ax in self.axes:
+            ax.set_xscale('log')
+            ax.set_yscale('symlog', linthreshy=1e-3)
+        self.axes[0].invert_xaxis()
+        # Set labels
+        self.axes[0].set_xlabel('Frequency [Hz]')
+        self.axes[1].set_xlabel('Frequency [Hz]')
+        self.axes[0].set_ylabel('HMV real component')
+        self.axes[1].set_ylabel('HMV imaginary component')
+        # Set the kwargs dict
+        new_labels = {
+            'xx': {'label': 'Imp_xx'},
+            'xy': {'label': 'Imp_xy'},
+            'yx': {'label': 'Imp_yx'},
+            'yy': {'label': 'Imp_yy'}}
+        hmv_kwargs = {}
+        for comp in ['xx', 'xy', 'yx', 'yy']:
+            hmv_kwargs[comp] = _validate_kwargs(
+                new_labels[comp],
+                DEFAULT_COMP_DICT[comp])
+        self._st_kwargs = hmv_kwargs
+
+    def draw(self, data_list, location):
+        """
+        Function to draw on the axes
+
+        :param data_list: List of NSEM data objects to plot.
+            Has to be of length >= 1. First item is treat as a
+            observed data (Hast to have standard_deviation and floor)
+            assigned) and the others are plotted on top.
+        :param location: Location of the station to plot
+        """
+
+        axes = self.axes
+
+        # Pop the data from the list
+        data = data_list[0]
+
+        # Apparent resistivity
+        for comp in ['xx', 'xy', 'yx', 'yy']:
+            data.station_errorbars(
+                location, 'M', comp, 'real',
+                ax=axes[0], **self._st_kwargs[comp])
+            # Apparent phase
+            data.station_errorbars(
+                location, 'M', comp, 'imag',
+                ax=axes[1], **self._st_kwargs[comp])
+
+        # Plot the additional data
+        for other_data in data_list[1::]:
+            # Need add symbol generation
+            comp_plot_dict = {'marker': '.', 'ls': '--'}
+
+            for comp in ['xx', 'xy', 'yx', 'yy']:
+                dd_kwargs = _validate_kwargs(
+                    comp_plot_dict, self._st_kwargs[comp])
+                # Real component
+                other_data.station_component(
+                    location, 'M', comp, 'real',
+                    ax=axes[0], **dd_kwargs)
+
+                # Imaginary component
+                other_data.station_component(
+                    location, 'M', comp, 'imag',
+                    ax=axes[1], **dd_kwargs)
+
+        axes[1].legend(
+            loc='center left', bbox_to_anchor=(1, 0.5))
 
 class DataNSEM_plot_functions(object):
     """
@@ -733,6 +828,7 @@ class DataNSEM_plot_functions(object):
                 xP.reshape(-1,), yP.reshape(-1,), plot_data, **plot_kwargs)
         return (fig, ax, plot_obj)
 
+
 # Hidden utils functions
 def _get_section_data(
     data, sectDict, tensor, orientation, component,
@@ -928,7 +1024,6 @@ def _get_station_data(
         return (freqs, plot_data)
 
 
-
 def _get_plot_data(
     data, location, tensor, orientation, component):
 
@@ -1026,10 +1121,14 @@ def _extract_location_data(
         if rx is None:
             if return_uncert:
                 return (np.array([]), np.array([]),
-                    np.array([]), np.array([]))
+                        np.array([]), np.array([]))
             return (np.array([]), np.array([]))
-        ind_loc = np.sqrt(
-            np.sum((rx.locs[:, :2] - location) ** 2, axis=1)) < 0.1
+        if len(rx.locs.shape) == 2:
+            ind_loc = np.sqrt(
+                np.sum((rx.locs[:, :2] - location) ** 2, axis=1)) < 0.1
+        elif len(rx.locs.shape) == 3:
+            ind_loc = np.sqrt(
+                np.sum((rx.locs[:, :2, 0] - location) ** 2, axis=1)) < 0.1
         if np.any(ind_loc):
             freq_list.append(src.freq)
             data_list.append(data[src, rx][ind_loc])

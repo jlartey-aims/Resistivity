@@ -532,7 +532,7 @@ class Problem3D_ePrimSec(BaseNSEMProblem):
             A = self.getA(freq)
             # Factor  the system
             if self._factor_dict is None:
-                logger.debug('Stating system solve')
+                logger.debug('Factor A matrix')
                 Ainv = self.Solver(A, **self.solverOpts)
             else:
                 Ainv = self._factor_dict[freq]

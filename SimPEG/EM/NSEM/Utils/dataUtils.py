@@ -77,7 +77,7 @@ def extract_data_info(NSEMdata):
                 rxTL.extend( (('m' + rx.orientation +' ')*rx.nD).split())
     return np.concatenate(dL), np.concatenate(freqL), np.array(rxTL)
 
-def reduce_data(NSEMdata, locations, freqs='All', rxs='All'):
+def reduce_data(NSEMdata, locs='All', freqs='All', rxs='All', verbose=False):
     """
     Function that selects locations from all the receivers in the survey
     (uses the numerator location as a reference). Also gives the option
@@ -92,19 +92,27 @@ def reduce_data(NSEMdata, locations, freqs='All', rxs='All'):
     floor_list = []
 
     # Sort out input frequencies
+    if locs is 'All':
+        locations = NSEMdata.survey.srcList[0].rxList[0].locs
+    elif isinstance(locs, np.ndarray):
+        locations = locs
+    else:
+        raise IOError('Incorrect input type for locs. \n' +
+                      'Can be \'All\' or ndarray ')
+    # Sort out input frequencies
     if freqs is 'All':
         frequencies = NSEMdata.survey.freqs
-    elif isinstance(freqs,np.ndarray):
+    elif isinstance(freqs, np.ndarray):
         frequencies = freqs
     elif isinstance(freqs, list):
         frequencies = np.array(freqs)
     else:
         raise IOError('Incorrect input type for freqs. \n' +
-                     'Can be \'All\'; ndarray or a list')
+                      'Can be \'All\'; ndarray or a list')
     # Sort out input rxs
     if rxs is 'All':
         rx_comp = True
-    elif isinstance(rxs,list):
+    elif isinstance(rxs, list):
         rx_comp = []
         for rxT in rxs:
             if'z' in rxT[0]:
@@ -120,15 +128,16 @@ def reduce_data(NSEMdata, locations, freqs='All', rxs='All'):
 
     else:
         raise IOError('Incorrect input type for rxs. \n' +
-                     'Can be \'All\' or a list')
-
+                      'Can be \'All\' or a list')
 
     # Filter the data
     for src in NSEMdata.survey.srcList:
         if src.freq in frequencies:
             new_rxList = []
             for rx in src.rxList:
-                if rx_comp is True or np.any([(isinstance(rx,ct) and rx.orientation in co) for (ct,co) in rx_comp]):
+                if rx_comp is True or np.any(
+                        [(isinstance(rx, ct) and rx.orientation in co)
+                            for (ct, co) in rx_comp]):
                     if len(rx.locs.shape) == 3:
                         ind_loc = np.sum(
                             np.concatenate(
@@ -150,7 +159,8 @@ def reduce_data(NSEMdata, locations, freqs='All', rxs='All'):
                         std_list.append(NSEMdata.standard_deviation[src, rx][ind_loc])
                         floor_list.append(NSEMdata.floor[src, rx][ind_loc])
                     except Exception as e:
-                        print('No standard deviation or floor assigned')
+                        if verbose:
+                            print('No standard deviation or floor assigned')
 
             new_src = type(src)
             new_srcList.append(new_src(new_rxList, src.freq))

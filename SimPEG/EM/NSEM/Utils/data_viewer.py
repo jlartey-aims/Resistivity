@@ -2,10 +2,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .. import RxNSEM
 import properties
 
-from .plotUtils import app_res_phs_imp_station_plot, tip_amp_station_plot
+from .. import RxNSEM
+from .plotUtils import (
+    app_res_phs_imp_station_plot,
+    tip_amp_station_plot, tip_complex_station_plot,
+    hmv_complex_station_plot)
 
 class NSEM_data_viewer(properties.HasProperties):
     """
@@ -68,8 +71,9 @@ class NSEM_data_viewer(properties.HasProperties):
         if RxNSEM.Point_impedance3D in unique_rx:
             self.station_figs.append(app_res_phs_imp_station_plot())
         if RxNSEM.Point_tipper3D in unique_rx:
-            self.station_figs.append(tip_amp_station_plot())
-
+            self.station_figs.append(tip_complex_station_plot())
+        if RxNSEM.Point_horizontalmagvar3D in unique_rx:
+            self.station_figs.append(hmv_complex_station_plot())
         self.freqency_figs = []
 
 
