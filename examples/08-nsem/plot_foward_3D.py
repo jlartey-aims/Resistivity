@@ -108,13 +108,13 @@ def run(plotIt=True):
         # Start plotting
         ax_r = dataVec.plot_app_res(
             np.array([-200, 0]),
-            components=['xy', 'yx'], ax=ax_r, errorbars=True)
+            orientations=['xy', 'yx'], ax=ax_r, errorbars=True)
         ax_r_on = dataVec.plot_app_res(
             np.array([-200, 0]),
-            components=['xx', 'yy'], ax=ax_r_on, errorbars=True)
+            orientations=['xx', 'yy'], ax=ax_r_on, errorbars=True)
         ax_p = dataVec.plot_app_phs(
             np.array([-200, 0]),
-            components=['xx', 'xy', 'yx', 'yy'], ax=ax_p, errorbars=True)
+            orientations=['xx', 'xy', 'yx', 'yy'], ax=ax_p, errorbars=True)
         ax_p.legend(bbox_to_anchor=(1.05, 1), loc=2)
 
 
