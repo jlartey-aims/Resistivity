@@ -173,7 +173,7 @@ class storeFactors_InvProblem(BaseInvProblem):
     Inherits the BaseInvProblem but extends the evalFunction to store
     the factors within the problem for reuse.
 
-    Assumes to be a NSWM problem
+    Assumes to be a NSEM problem
 
     """
 

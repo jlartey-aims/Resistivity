@@ -983,10 +983,7 @@ class InexactGaussNewton_storeFactors(InexactGaussNewton):
             :return: None
 
         """
-        if self.parent.prob._factor_dict is not None:
-            for fact in self.parent.prob._factor_dict.values():
-                fact.clean()
-            self.parent.prob._factor_dict = None
+        self.parent.prob._clean_factor_dict()
 
 
 class InexactGaussNewton_eachFreq(InexactGaussNewton):

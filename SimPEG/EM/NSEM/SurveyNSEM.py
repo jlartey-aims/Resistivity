@@ -128,10 +128,14 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
             # Assume the same locs for all RX
             locs = src.rxList[0].locs
             if locs.shape[1] == 1:
-                locs = np.hstack((np.array([[0.0,0.0]]),locs))
+                locs = np.hstack((np.array([[0.0,0.0]]), locs))
             elif locs.shape[1] == 2:
-                locs = np.hstack((np.array([[0.0]]),locs))
-            tArrRec = np.concatenate((src.freq*np.ones((locs.shape[0],1)),locs,np.nan*np.ones((locs.shape[0],12))),axis=1).view(dtRI)
+                locs = np.hstack((np.array([[0.0]]), locs))
+            tArrRec = np.concatenate((
+                src.freq * np.ones((locs.shape[0], 1)),
+                locs,
+                np.nan * np.ones((locs.shape[0], len(dtRI) - 4))
+            ), axis=1).view(dtRI)
             # np.array([(src.freq,rx.locs[0,0],rx.locs[0,1],rx.locs[0,2],np.nan ,np.nan ,np.nan ,np.nan ,np.nan ,np.nan ,np.nan ,np.nan ) for rx in src.rxList],dtype=dtRI)
             # Get the type and the value for the DataNSEM object as a list
             # Insert the values to the temp array

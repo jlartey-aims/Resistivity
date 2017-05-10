@@ -8,6 +8,8 @@ import scipy.sparse as sp
 import numpy as np
 import logging
 
+from dask import compute, delayed
+
 from SimPEG.EM.Utils.EMUtils import omega, mu_0
 from SimPEG import SolverLU as SimpegSolver, Utils, mkvc
 from ..FDEM.ProblemFDEM import BaseFDEMProblem
@@ -41,7 +43,40 @@ class BaseNSEMProblem(BaseFDEMProblem):
     # Notes:
     # Use the fields and devs methods from BaseFDEMProblem
 
-    # NEED to clean up the Jvec and Jtvec to use Zero and Identities for None components.
+    # Hidden factorization methods
+    def _factorize_Ainv(self, m):
+        """
+        Method to store factors for Pardiso solver
+
+        """
+        # Calcualte the factors if the aren't there
+
+        logger = logging.getLogger('SimPEG.EM.NSEM.ProblemNSEM.BaseProblem._factorize_Ainv')
+        logger.info('Inverting A and store')
+        # Reset the factor_dict
+        self._factor_dict = {}
+
+        # Update the model
+        self.model = m
+
+        for freq in self.survey.freqs:
+            logger.debug('Starting factoring for {:.3e}'.format(freq))
+            # Get the system
+            A = self.getA(freq)
+            # Factor  the system
+            self._factor_dict[freq] = self.Solver(A, **self.solverOpts)
+            self._factor_dict[freq].factor()
+
+    def _clean_factor_dict(self):
+        """
+        Cleans and reset the Pardiso factors in factor_dict
+        """
+        # Clean the factors out of memory
+        for fact in self._factor_dict.values():
+            fact.clean()
+        # Reset the factor dict to None
+        self._factor_dict = None
+
     def Jvec(self, m, v, f=None):
         """
         Function to calculate the data sensitivities dD/dm times a vector.
@@ -90,6 +125,45 @@ class BaseNSEMProblem(BaseFDEMProblem):
         logger.info('Calculation of Jvec - completed')
         return mkvc(Jv)
 
+    # def _Jvec_parallel(self, m, v, f=None):
+    #     """
+    #     Function to calculate the data sensitivities dD/dm times a vector.
+
+    #     :param numpy.ndarray m: conductivity model (nP,)
+    #     :param numpy.ndarray v: vector which we take sensitivity product with (nP,)
+    #     :param SimPEG.EM.NSEM.FieldsNSEM (optional) u: NSEM fields object, if not given
+    #         it is calculated
+    #     :rtype: numpy.ndarray
+    #     :return: Jv (nData,) Data sensitivities wrt m
+    #     """
+    #     logger = logging.getLogger('SimPEG.EM.NSEM.ProblemNSEM.BaseProblem._Jvec_parallel')
+
+    #     logger.info('Starting calculation of Jvec')
+    #     # Calculate the fields if not given as input
+    #     if f is None:
+    #         logger.debug('Calculating fields')
+    #         f = self.fields(m)
+    #     # Set current model
+    #     self.model = m
+    #     # Initiate the Jv object
+
+    #     # Loop all the frequenies
+    #     Jv_list = []
+    #     for freq in self.survey.freqs:
+    #         Ainv = self._factor_dict[freq]
+    #         # Calculate
+    #         Jvec_delay = delayed(self._Jvec_atFreq)(Ainv, freq, w, u, None)
+    #         Jw_list.append(Jvec_delay)
+
+    #     Jw_concat_delay = delayed(np.concatenate)(Jw_list)
+    #     Jw_comp = Jw_concat_delay.compute()
+    #     logger.debug(
+    #         'Ran for {:f} seconds'.format(time.time()-startTime)
+    #     )
+    #     # Return the vectorized sensitivities
+    #     logger.info('Calculation of Jvec - completed')
+    #     return mkvc(Jv)
+
     def _Jvec_atFreq(self, Ainv, freq, v, f, Jv):
         """
         Function to calculate the Jvec at a given frequency
@@ -97,9 +171,14 @@ class BaseNSEMProblem(BaseFDEMProblem):
         """
         logger = logging.getLogger(
             'SimPEG.EM.NSEM.ProblemNSEM.BaseProblem._Jvec_atFreq')
+        srcList = self.survey.getSrcByFreq(freq)
         if Jv is None:
-            Jv = self.dataPair(self.survey)
-        for src in self.survey.getSrcByFreq(freq):
+            new_survey = Survey(srcList)
+            Jv = self.dataPair(new_survey)
+            return_nparray = True
+        else:
+            return_nparray = False
+        for src in srcList:
             logger.debug('Evaluating derivates')
             # We need fDeriv_m = df/du*du/dm + df/dm
             # Construct du/dm, it requires a solve
@@ -119,7 +198,8 @@ class BaseNSEMProblem(BaseFDEMProblem):
                 # Calculate dP/du*du/dm*v
                 logger.debug('Evaluate rx derivatives')
                 Jv[src, rx] = rx.evalDeriv(src, self.mesh, f, mkvc(du_dm_v)) # wrt uPDeriv_u(mkvc(du_dm))
-
+        if return_nparray:
+            return mkvc(Jv)
         return Jv
 
     def Jtvec(self, m, v, f=None):
