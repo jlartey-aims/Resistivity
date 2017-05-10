@@ -17,7 +17,9 @@ import sys
 import numpy as np
 from numpy.lib import recfunctions as recFunc
 
-from SimPEG import Survey as SimPEGsurvey, mkvc
+
+from SimPEG.Survey import BaseSurvey, Data
+from SimPEG import mkvc
 from .SrcNSEM import BaseNSEMSrc, Planewave_xy_1Dprimary, Planewave_xy_1DhomotD
 from .RxNSEM import (
     Point_impedance1D, Point_impedance3D,
@@ -29,7 +31,7 @@ from .Utils.plotUtils import DataNSEM_plot_functions
 #########
 
 
-class Survey(SimPEGsurvey.BaseSurvey):
+class NSEMSurvey(BaseSurvey):
     """
     Survey class for NSEM. Contains all the sources associated with the survey.
 
@@ -89,7 +91,7 @@ class Survey(SimPEGsurvey.BaseSurvey):
 #########
 
 
-class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
+class NSEMData(Data, DataNSEM_plot_functions):
     """
     Data class for NSEMdata. Stores the data vector indexed by the survey.
 
@@ -103,7 +105,7 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
     """
     def __init__(self, survey, v=None, standard_deviation=None, floor=None):
         # Pass the variables to the "parent" method
-        SimPEGsurvey.Data.__init__(self, survey, v, standard_deviation, floor)
+        super(self, Data).__init__(self, survey, v, standard_deviation, floor)
 
 
     def toRecArray(self, returnType='RealImag'):
