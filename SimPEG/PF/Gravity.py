@@ -434,7 +434,7 @@ def readUBCgravObs(obs_file):
 
     # First line has the number of rows
     line = fid.readline()
-    ndat = np.array(line.split(), dtype=int)
+    ndat = int(np.array(line.split(), dtype=int))
 
     # Pre-allocate space for obsx, obsy, obsz, data, uncert
     line = fid.readline()
