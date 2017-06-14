@@ -60,3 +60,25 @@ def rotatePointsFromNormals(XYZ,n0,n1,x0=np.r_[0.,0.,0.]):
     X0 = np.ones([XYZ.shape[0],1])*mkvc(x0)
 
     return (XYZ - X0).dot(R.T) + X0 # equivalent to (R*(XYZ - X0)).T + X0
+
+
+def xyz2atp(vec):
+    """
+        Converts nC-by-3 vector in cartesian to spherical
+
+        :param numpy.array vec: vector of size nC-by-3 [x,y,z]
+        :return: numpy.array of size nC-by-3 [amp,theta,phi]
+
+    """
+
+    a = (vec[:, 0]**2. + vec[:, 1]**2. + vec[:, 2]**2.)**0.5
+
+    t = np.zeros(vec.shape[0])
+    t[a > 0] = np.arcsin(vec[:, 2][a > 0]/a[a > 0])
+
+    p = np.zeros(vec.shape[0])
+    p[a > 0] = np.arctan2(vec[:, 1][a > 0], vec[:, 0][a > 0])
+
+    m_atp = np.r_[a, t, p]
+
+    return m_atp
