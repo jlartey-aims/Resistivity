@@ -575,11 +575,11 @@ class Update_lin_PreCond(InversionDirective):
             # Update the pre-conditioner
             if self.ComboObjFun:
 
-                reg_diag = []
+                reg_diag = np.zeros_like(self.invProb.model)
                 for reg in self.reg.objfcts:
-                    reg_diag.append(self.invProb.beta*(reg.W.T*reg.W).diagonal())
+                    reg_diag += (self.invProb.beta*(reg.W.T*reg.W).diagonal())
 
-                diagA = np.sum(self.prob.G**2., axis=0) + np.hstack(reg_diag)
+                diagA = np.sum(self.prob.G**2., axis=0) + reg_diag
 
             else:
                 diagA = (np.sum(self.prob.G**2., axis=0) +
@@ -598,11 +598,11 @@ class Update_lin_PreCond(InversionDirective):
             # Update the pre-conditioner
             if self.ComboObjFun:
 
-                reg_diag = []
+                reg_diag = np.zeros_like(self.invProb.model)
                 for reg in self.reg.objfcts:
-                    reg_diag.append(self.invProb.beta*(reg.W.T*reg.W).diagonal())
+                    reg_diag += (self.invProb.beta*(reg.W.T*reg.W).diagonal())
 
-                diagA = np.sum(self.prob.G**2., axis=0) + np.hstack(reg_diag)
+                diagA = np.sum(self.prob.G**2., axis=0) + reg_diag
 
             else:
                 diagA = (np.sum(self.prob.G**2., axis=0) +
