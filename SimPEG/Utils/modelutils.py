@@ -2,7 +2,7 @@ from .matutils import mkvc, ndgrid, kron3, speye
 from .meshutils import closestPoints
 import numpy as np
 import scipy.sparse as sp
-from scipy.interpolate import griddata, interp1d
+from scipy.interpolate import griddata, interp1d, NearestNDInterpolator
 
 
 def surface2ind_topo(mesh, topo, gridLoc='CC', method='cubic', fill_value=np.nan):
@@ -127,6 +127,11 @@ def MinCurvatureInterp(mesh, pts, vals, tol=1e-5, iterMax=None):
     residual = 1.
 
     m = np.zeros((mesh.nC, vals.shape[1]))
+
+    # Begin with neighrest primer
+    for ii in range(m.shape[1]):
+        F = NearestNDInterpolator(mesh.gridCC[ijk], vals[:, ii])
+        m[:, ii] = F(mesh.gridCC)
 
     while np.all([count < iterMax, residual > tol]):
         m[ijk, :] = vals
