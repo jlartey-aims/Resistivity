@@ -65,6 +65,13 @@ def rotatePointsFromNormals(XYZ,n0,n1,x0=np.r_[0.,0.,0.]):
 def xyz2atp(vec):
     """
         Converts nC-by-3 vector in cartesian to spherical
+        coordinates.
+
+        Spherical coordinates system ->
+        amplitude: length of the vector
+        theta: angle from x-positive axis on the xz-plane
+        phi: angle from x-positve axis on the xy-plane
+        (positive counterclockwise)
 
         :param numpy.array vec: vector of size nC-by-3 [x,y,z]
         :return: numpy.array of size nC-by-3 [amp,theta,phi]
@@ -74,7 +81,7 @@ def xyz2atp(vec):
     a = (vec[:, 0]**2. + vec[:, 1]**2. + vec[:, 2]**2.)**0.5
 
     t = np.zeros(vec.shape[0])
-    t[a > 0] = np.arcsin(vec[:, 2][a > 0]/a[a > 0])
+    t[a > 0] = np.arcsin(-vec[:, 2][a > 0]/a[a > 0])
 
     p = np.zeros(vec.shape[0])
     p[a > 0] = np.arctan2(vec[:, 1][a > 0], vec[:, 0][a > 0])
