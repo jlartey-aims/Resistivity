@@ -93,7 +93,7 @@ def reduce_data(NSEMdata, locs='All', freqs='All', rxs='All', verbose=False):
 
     # Sort out input frequencies
     if locs is 'All':
-        locations = NSEMdata.survey.srcList[0].rxList[0].locs
+        locations = NSEMdata._unique_locations()
     elif isinstance(locs, np.ndarray):
         locations = locs
     else:

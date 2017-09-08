@@ -9,26 +9,36 @@ from SimPEG import Maps, mkvc
 from SimPEG.EM.FDEM.SrcFDEM import BaseFDEMSrc as FDEMBaseSrc
 from SimPEG.EM.Utils import omega
 from .Utils.sourceUtils import homo1DModelSource
+from . import RxNSEM
+
+import properties
 
 #################
 ###   Sources ###
 #################
 
-class BaseNSEMSrc(FDEMBaseSrc):
+class BaseNSEMSrc(FDEMBaseSrc, properties.HasProperties):
     '''
     Sources for the NSEM problem.
     Use the SimPEG BaseSrc, since the source fields share properties with the transmitters.
 
-    :param float freq: The frequency of the source
-    :param list rxList: A list of receivers associated with the source
     '''
 
-    freq = None #: Frequency (float)
+    rxList = properties.List(
+        "List of NSEM receivers",
+        required=True,
+        prop=properties.Instance(
+            'NSEM receiver', RxNSEM.BaseRxNSEM_Point
+        )
+    )
+    freq = properties.Float(
+        "frequency of the source",
+        min=0,
+        required=True
+    )
 
+    def __init__(self, rxList):
 
-    def __init__(self, rxList, freq):
-
-        self.freq = float(freq)
         FDEMBaseSrc.__init__(self, rxList)
 
 # 1D sources
@@ -38,6 +48,20 @@ class Planewave_xy_1DhomotD(BaseNSEMSrc):
 
     It calculates fields calculated based on conditions on the boundary of the domain.
     """
+
+    rxList = properties.List(
+        "List of NSEM receivers",
+        required=True,
+        prop=properties.Instance(
+            'NSEM receiver', RxNSEM.BaseRxNSEM_Point
+        )
+    )
+    freq = properties.Float(
+        "frequency of the source",
+        min=0,
+        required=True
+    )
+
     def __init__(self, rxList, freq):
         BaseNSEMSrc.__init__(self, rxList, freq)
 
@@ -51,10 +75,21 @@ class Planewave_xy_1Dprimary(BaseNSEMSrc):
 
 
     """
-    def __init__(self, rxList, freq):
-        # assert mkvc(self.mesh.hz.shape,1) == mkvc(sigma1d.shape,1),'The number of values in the 1D background model does not match the number of vertical cells (hz).'
+
+    def __init__(self, *args):
+        """
+
+        """
+        # Note write as properties
         self.sigma1d = None
-        BaseNSEMSrc.__init__(self, rxList, freq)
+        # Assume the args are order (rxList, freq)
+        self.rxList = args[0]
+        self.freq = args[1]
+
+        BaseNSEMSrc.__init__(
+            self,
+            self._get('rxList')
+        )
 
 
     def ePrimary(self,problem):

@@ -49,7 +49,7 @@ class EDIimporter:
 
         return self._data[comps]
 
-    def importFiles(self):
+    def importFiles(self, sjvBool=False):
         """
         Function to import EDI files into a object.
 
@@ -68,12 +68,19 @@ class EDIimporter:
         # Loop through all the files
         for nrEDI, EDIfile in enumerate(self.filesList):
             # Read the file into a list of the lines
-            with open(EDIfile,'r') as fid:
+            with open(EDIfile, 'r') as fid:
                 EDIlines = fid.readlines()
             # Find the location
-            latD, longD, elevM = _findLatLong(EDIlines)
-            # Transfrom coordinates
-            transCoord = self._transfromPoints(longD,latD)
+            if sjvBool:
+                transCoord = np.array(
+                    EDIlines[
+                        _findLine('STATION_CENTER', EDIlines)[0]
+                    ].split('[')[-1].split(']')[0].split(), float)
+                elevM = transCoord[2:]
+            else:
+                latD, longD, elevM = _findLatLong(EDIlines)
+                # Transfrom coordinates
+                transCoord = self._transfromPoints(longD, latD)
             # Extract the name of the file (station)
             EDIname = EDIfile.split(os.sep)[-1].split('.')[0]
             # Arrange the data
