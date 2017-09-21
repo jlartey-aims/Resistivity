@@ -292,7 +292,7 @@ class LinearProblem(BaseProblem):
             y.astype(np.float64)
 
         else:
-            y = np.dot(self.F, m)
+            y = np.dot(self.F, self.modelMap.P*m)
 
         return y
 
@@ -305,7 +305,7 @@ class LinearProblem(BaseProblem):
             y.astype(np.float64)
 
         else:
-            y = np.dot(self.F, v)
+            y = np.dot(self.F, self.modelMap.P*v)
 
         return y
 
@@ -315,10 +315,10 @@ class LinearProblem(BaseProblem):
         # Important to avoid memory copies of dense matrix
         if self.F.dtype is np.dtype('float32'):
 
-            y = np.dot(self.F.T, v.astype(np.float32))
+            y = self.modelMap.P.T * np.dot(self.F.T, v.astype(np.float32))
             y.astype(np.float64)
 
         else:
-            y = np.dot(self.F.T, v)
+            y = self.modelMap.P.T * np.dot(self.F.T, v)
 
         return y
