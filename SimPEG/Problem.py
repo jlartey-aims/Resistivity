@@ -265,7 +265,7 @@ class BaseTimeProblem(BaseProblem):
 
 class LinearProblem(BaseProblem):
 
-    surveyPair = Survey.LinearSurvey
+    # surveyPair = Survey.LinearSurvey
 
     F = None
 
@@ -276,7 +276,9 @@ class LinearProblem(BaseProblem):
     @property
     def modelMap(self):
         "A SimPEG.Map instance."
-        return getattr(self, '_modelMap', None)
+        if getattr(self, '_modelMap', None) is None:
+            self._modelMap = Maps.IdentityMap(self.mesh)
+        return self._modelMap
 
     @modelMap.setter
     def modelMap(self, val):
@@ -292,7 +294,7 @@ class LinearProblem(BaseProblem):
             y.astype(np.float64)
 
         else:
-            y = np.dot(self.F, self.modelMap.P*m)
+            y = np.dot(self.F, self.modelMap*m)
 
         return y
 
@@ -305,7 +307,7 @@ class LinearProblem(BaseProblem):
             y.astype(np.float64)
 
         else:
-            y = np.dot(self.F, self.modelMap.P*v)
+            y = np.dot(self.F, self.modelMap.deriv(m)*v)
 
         return y
 
@@ -315,10 +317,11 @@ class LinearProblem(BaseProblem):
         # Important to avoid memory copies of dense matrix
         if self.F.dtype is np.dtype('float32'):
 
-            y = self.modelMap.P.T * np.dot(self.F.T, v.astype(np.float32))
+            y = self.modelMap.deriv(m).T * np.dot(self.F.T, v.astype(np.float32))
             y.astype(np.float64)
 
         else:
-            y = self.modelMap.P.T * np.dot(self.F.T, v)
+            y = self.modelMap.deriv(m).T * np.dot(self.F.T, v)
 
         return y
+
