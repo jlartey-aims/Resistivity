@@ -49,39 +49,58 @@ class InversionDirective(object):
     @property
     def reg(self):
         if getattr(self, '_reg', None) is None:
-            self._reg = self.invProb.reg
+            self.reg = self.invProb.reg  # go through the setter
         return self._reg
 
     @reg.setter
     def reg(self, value):
-        assert any([isinstance(value, regtype) for regtype in self._regPair]),(
+        assert any([isinstance(value, regtype) for regtype in self._regPair]), (
             "Regularization must be in {}, not {}".format(
                 self._regPair, type(value)
             )
         )
-        self._reg = reg
+
+        if isinstance(value, Regularization.BaseComboRegularization):
+            value = 1*value  # turn it into a combo objective function
+        self._reg = value
 
     @property
     def dmisfit(self):
-        return self.invProb.dmisfit
+        if getattr(self, '_dmisfit', None) is None:
+            self.dmisfit = self.invProb.dmisfit  # go through the setter
+        return self._dmisfit
 
     @dmisfit.setter
     def dmisfit(self, value):
+
         assert any([
                 isinstance(value, dmisfittype) for dmisfittype in
                 self._dmisfitPair
         ]), "Regularization must be in {}, not {}".format(
                 self._dmisfitPair, type(value)
         )
-        self._dmisfit = dmisfit
+
+        if not isinstance(value, ObjectiveFunction.ComboObjectiveFunction):
+            value = 1*value  # turn it into a combo objective function
+        self._dmisfit = value
 
     @property
     def survey(self):
-        return self.dmisfit.survey
+        """
+           Assuming that dmisfit is always a ComboObjectiveFunction,
+           return a list of surveys for each dmisfit [survey1, survey2, ... ]
+        """
+        return [objfcts.survey for objfcts in self.dmisfit.objfcts]
+
 
     @property
     def prob(self):
-        return self.dmisfit.prob
+        """
+           Assuming that dmisfit is always a ComboObjectiveFunction,
+           return a list of problems for each dmisfit [prob1, prob2, ...]
+        """
+        return [objfcts.prob for objfcts in self.dmisfit.objfcts]
+
 
     def initialize(self):
         pass
@@ -811,3 +830,147 @@ class Update_Wj(InversionDirective):
             JtJdiag = JtJdiag / max(JtJdiag)
 
             self.reg.wght = JtJdiag
+
+class UpdateSensWeighting(InversionDirective):
+    """
+    Directive to take care of re-weighting
+    the non-linear magnetic problems.
+
+    """
+    # coordinate_system = 'Amp'
+    # test = False
+    mapping = None
+    ComboRegFun = False
+    ComboMisfitFun = False
+    JtJdiag = None
+    everyIter = True
+    epsilon = 1e-8
+
+    def initialize(self):
+
+        # Update inverse problem
+        self.update()
+
+        if self.everyIter:
+            # Update the regularization
+            self.updateReg()
+
+    def endIter(self):
+
+        # Re-initialize the problem for update
+        # if self.ComboMisfitFun:
+        for prob in self.prob:
+
+            if isinstance(prob, Magnetics.MagneticVector):
+                if prob.coordinate_system == 'spherical':
+                    prob._S = None
+                    prob.model = self.invProb.model
+
+            if isinstance(prob, Magnetics.MagneticAmplitude):
+                prob._dfdm = None
+                prob._S = None
+                prob.model = self.invProb.model
+
+        # Update inverse problem
+        self.update()
+
+        if self.everyIter:
+            # Update the regularization
+            self.updateReg()
+
+    def update(self):
+
+        # Get sum square of columns of J
+        self.getJtJdiag()
+
+        # Compute normalized weights
+        self.wr = self.getWr()
+
+        # Send a copy of JtJdiag for the preconditioner
+        self.updateOpt()
+
+    def getJtJdiag(self):
+        """
+            Compute explicitely the main diagonal of JtJ
+            Good for any problem where J is formed explicitely
+        """
+        self.JtJdiag = []
+
+        for prob, survey, dmisfit in zip(self.prob,
+                                         self.survey,
+                                         self.dmisfit.objfcts):
+
+            nC = prob.model.shape[0]
+            JtJdiag = np.zeros(nC)
+
+            m = self.invProb.model
+            f = prob.fields(m)
+
+            JtJdiag += np.sum((dmisfit.W * prob.getJ(m, f))**2., axis=0)
+
+            # Apply scale to the deriv and deriv2
+            # dmisfit.scale = scale
+
+#            if prob.W is not None:
+#
+#                JtJdiag *= prob.W
+
+            self.JtJdiag += [JtJdiag]
+
+        return self.JtJdiag
+
+    def getWr(self):
+        """
+            Take the diagonal of JtJ and return
+            a normalized sensitivty weighting vector
+        """
+
+        wr = np.zeros_like(self.invProb.model)
+
+        for prob_JtJ, prob in zip(self.JtJdiag, self.prob):
+
+            nC = prob.model.shape[0]
+            wr_prob = np.zeros(nC)
+            
+                # if prob.threshold is None:
+            prob.threshold = prob_JtJ[:nC].max()*self.epsilon
+            wr_prob = prob_JtJ + prob.threshold
+
+            # print(wr_prob.min(),wr_prob.max(),prob.threshold)
+            # Check if it is a Combo problem
+#            if getattr(prob.chiMap, 'index', None) is None:
+        wr += wr_prob
+
+#            else:
+
+#                wr[prob.chiMap.index] += wr_prob
+
+        wr = wr**0.5
+        wr /= wr.max()
+
+        return wr
+
+    def updateReg(self):
+        """
+            Update the cell weights with the approximated sensitivity
+        """
+
+        for reg in self.reg.objfcts:
+            reg.cell_weights = reg.mapping * (self.wr)
+
+    def updateOpt(self):
+        """
+            Update a copy of JtJdiag to optimization for preconditioner
+        """
+        # if self.ComboMisfitFun:
+        JtJdiag = np.zeros_like(self.invProb.model)
+        for prob, JtJ, dmisfit in zip(self.prob, self.JtJdiag, self.dmisfit.objfcts):
+
+            # Check if he has wire
+#            if getattr(prob.chiMap, 'index', None) is None:
+            JtJdiag += JtJ
+#            else:
+                # He is a snitch!
+#                JtJdiag[prob.chiMap.index] += JtJ
+
+        self.opt.JtJdiag = JtJdiag
