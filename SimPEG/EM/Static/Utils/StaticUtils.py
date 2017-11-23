@@ -9,7 +9,9 @@ from SimPEG import Utils, Mesh
 from SimPEG.EM.Static import DC
 
 
-def plot_pseudoSection(DCsurvey, axs, surveyType='dipole-dipole', dataType="appConductivity", clim=None, scale="linear", sameratio=True, pcolorOpts={}):
+def plot_pseudoSection(DCsurvey, axs, dobs=None, surveyType='dipole-dipole',
+                       dataType="appConductivity", clim=None,
+                       scale="linear", sameratio=True, pcolorOpts={}):
     """
         Read list of 2D tx-rx location and plot a speudo-section of apparent
         resistivity.
@@ -41,6 +43,11 @@ def plot_pseudoSection(DCsurvey, axs, surveyType='dipole-dipole', dataType="appC
     LEG = []
     count = 0  # Counter for data
 
+    if dobs is None:
+        dobs = DCsurvey.dobs
+    else:
+        assert (len(dobs) == DCsurvey.nD), "Length of 'dobs' must match 'DCsurvey.nD'"
+
     for ii in range(DCsurvey.nSrc):
 
         Tx = DCsurvey.srcList[ii].loc
@@ -48,7 +55,7 @@ def plot_pseudoSection(DCsurvey, axs, surveyType='dipole-dipole', dataType="appC
 
         nD = DCsurvey.srcList[ii].rxList[0].nD
 
-        data = DCsurvey.dobs[count:count+nD]
+        data = dobs[count:count+nD]
         count += nD
 
         # Get distances between each poles A-B-M-N
@@ -125,7 +132,6 @@ def plot_pseudoSection(DCsurvey, axs, surveyType='dipole-dipole', dataType="appC
         midz = np.hstack([midz, -np.abs(Cmid-Pmid)/2 + zsrc])
         # elif DCsurvey.mesh.dim==2:
         #     midz = np.hstack([midz, -np.abs(Cmid-Pmid)/2 + zsrc ])
-    ax = axs
 
     # Grid points
     grid_x, grid_z = np.mgrid[np.min(midx):np.max(midx),
@@ -165,12 +171,12 @@ def plot_pseudoSection(DCsurvey, axs, surveyType='dipole-dipole', dataType="appC
     cbar.ax.tick_params(labelsize=10)
 
     # Plot apparent resistivity
-    ax.plot(midx, midz, 'k.', ms=1)
+    axs.plot(midx, midz, 'k.', ms=1)
 
     if sameratio:
         plt.gca().set_aspect('equal', adjustable='box')
 
-    return ph, ax, cbar, LEG
+    return ph, axs, cbar, LEG
 
 
 def gen_DCIPsurvey(endl, mesh, surveyType, a, b, n, d2flag='2.5D'):
