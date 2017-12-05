@@ -811,3 +811,122 @@ class Update_Wj(InversionDirective):
             JtJdiag = JtJdiag / max(JtJdiag)
 
             self.reg.wght = JtJdiag
+
+class UpdateSensWeighting(InversionDirective):
+    """
+    Directive to take care of re-weighting
+    the non-linear problems.
+
+    """
+    # test = False
+    mapping = None
+    JtJdiag = None
+    everyIter = True
+    epsilon = 1e-12
+
+    def initialize(self):
+
+        # Update inverse problem
+        self.update()
+
+        if self.everyIter:
+            # Update the regularization
+            self.updateReg()
+
+    def endIter(self):
+
+        # Re-initialize the problem for update
+        for prob in self.prob:
+
+            if getattr(prob, 'coordinate_system', None) is not None:
+                if prob.coordinate_system == 'spherical':
+                    prob._S = None
+
+            prob.model = self.invProb.model
+
+        # Update inverse problem
+        self.update()
+
+        if self.everyIter:
+            # Update the regularization
+            self.updateReg()
+
+    def update(self):
+
+        # Get sum square of columns of J
+        self.getJtJdiag()
+
+        # Compute normalized weights
+        self.wr = self.getWr()
+
+        # Send a copy of JtJdiag for the preconditioner
+        self.updateOpt()
+
+    def getJtJdiag(self):
+        """
+            Compute explicitely the main diagonal of JtJ
+            Good for any problem where J is formed explicitely
+        """
+        self.JtJdiag = []
+
+        for prob, survey, dmisfit in zip(self.prob,
+                                         self.survey,
+                                         self.dmisfit.objfcts):
+
+            JtJdiag = np.zeros_like(self.invProb.model)
+
+            m = self.invProb.model
+            f = prob.fields(m)
+
+            if getattr(prob, 'Jmat', None) is not None:
+                JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
+            else:
+                prob.getJ()
+                JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
+
+            # Apply scale to the deriv and deriv2
+            # dmisfit.scale = scale
+
+            if getattr(prob, 'W', None) is not None:
+
+                JtJdiag *= prob.W
+
+            self.JtJdiag += [JtJdiag]
+
+        return self.JtJdiag
+
+    def getWr(self):
+        """
+            Take the diagonal of JtJ and return
+            a normalized sensitivty weighting vector
+        """
+        wr = np.zeros_like(self.invProb.model)
+
+        for prob_JtJ in self.JtJdiag:
+            wr += prob_JtJ
+
+        wr += self.epsilon
+        wr = wr**0.5
+        wr /= wr.max()
+
+        return wr
+
+    def updateReg(self):
+        """
+            Update the cell weights with the approximated sensitivity
+        """
+
+        for reg in self.reg.objfcts:
+            reg.cell_weights = reg.mapping * (self.wr)
+
+    def updateOpt(self):
+        """
+            Update a copy of JtJdiag to optimization for preconditioner
+        """
+
+        JtJdiag = np.zeros_like(self.invProb.model)
+        for prob, JtJ, dmisfit in zip(self.prob, self.JtJdiag, self.dmisfit.objfcts):
+
+            JtJdiag += JtJ
+
+        self.opt.JtJdiag = JtJdiag
