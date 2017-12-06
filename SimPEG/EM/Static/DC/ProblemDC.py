@@ -31,7 +31,7 @@ class BaseDCProblem(BaseEMProblem):
             self.Ainv.clean()
 
         if self.Jmat is not None:
-            self.Jmat.clean()
+            self.Jmat = None
 
         f = self.fieldsPair(self.mesh, self.survey)
         A = self.getA()
