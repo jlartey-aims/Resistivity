@@ -836,7 +836,7 @@ class UpdateSensWeighting(InversionDirective):
     def endIter(self):
 
         # Re-initialize the problem for update
-        for prob in self.prob:
+        for prob in [self.prob]:
 
             if getattr(prob, 'coordinate_system', None) is not None:
                 if prob.coordinate_system == 'spherical':
@@ -869,9 +869,9 @@ class UpdateSensWeighting(InversionDirective):
         """
         self.JtJdiag = []
 
-        for prob, survey, dmisfit in zip(self.prob,
-                                         self.survey,
-                                         self.dmisfit.objfcts):
+        for prob, survey, dmisfit in zip([self.prob],
+                                         [self.survey],
+                                         [self.dmisfit]):
 
             JtJdiag = np.zeros_like(self.invProb.model)
 
@@ -881,7 +881,7 @@ class UpdateSensWeighting(InversionDirective):
             if getattr(prob, 'Jmat', None) is not None:
                 JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
             else:
-                prob.getJ()
+                prob.getJ(m)
                 JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
 
             # Apply scale to the deriv and deriv2
@@ -925,7 +925,7 @@ class UpdateSensWeighting(InversionDirective):
         """
 
         JtJdiag = np.zeros_like(self.invProb.model)
-        for prob, JtJ, dmisfit in zip(self.prob, self.JtJdiag, self.dmisfit.objfcts):
+        for prob, JtJ, dmisfit in zip([self.prob], self.JtJdiag, [self.dmisfit]):
 
             JtJdiag += JtJ
 
