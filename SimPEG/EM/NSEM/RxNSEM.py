@@ -26,8 +26,10 @@ class BaseRxNSEM_Point(SimPEG.Survey.BaseRx):
     """
 
     def __init__(self, locs, orientation=None, component=None):
-        assert(orientation in ['xx', 'xy', 'yx', 'yy', 'zx', 'zy']), "Orientation {0!s} not known. Orientation must be in 'x', 'y', 'z'. Arbitrary orientations have not yet been implemented.".format(orientation)
-        assert(component in ['real', 'imag']), "'component' must be 'real' or 'imag', not {0!s}".format(component)
+        if orientation is not None:
+            assert(orientation in ['xx', 'xy', 'yx', 'yy', 'zx', 'zy']), "Orientation {0!s} not known. Orientation must be in 'x', 'y', 'z'. Arbitrary orientations have not yet been implemented.".format(orientation)
+        if component is not None:
+            assert(component in ['real', 'imag']), "'component' must be 'real' or 'imag', not {0!s}".format(component)
 
         self.orientation = orientation
         self.component = component
@@ -339,11 +341,9 @@ class Point_impedance1D(SimPEG.Survey.BaseRx):
     :param string component: real or imaginary component 'real' or 'imag'
     """
 
-    orientation = 'yx'
-
     def __init__(self, locs, component=None):
         assert(component in ['real', 'imag']), "'component' must be 'real' or 'imag', not {0!s}".format(component)
-
+        self.orientation = 'yx'
         self.component = component
         SimPEG.Survey.BaseRx.__init__(self, locs, rxType=None)
 

@@ -15,7 +15,7 @@ DEFAULT_COMP_DICT = {
     'xx':{'color': 'green', 'label': 'Imp_xx', 'marker': '_', 'ls': 'None'},
     'xy':{'color': 'blue', 'label': 'Imp_xy', 'marker': '_', 'ls': 'None'},
     'yx':{'color': 'red', 'label': 'Imp_yx', 'marker': '_', 'ls': 'None'},
-    'yy':{'color': 'yellow', 'label': 'Imp_yy', 'marker': '_', 'ls': 'None'},
+    'yy':{'color': 'darkorange', 'label': 'Imp_yy', 'marker': '_', 'ls': 'None'},
     'zx':{'color': 'brown', 'label': 'Tip_zx', 'marker': '_', 'ls': 'None'},
     'zy':{'color': 'purple', 'label': 'Tip_zy', 'marker': '_', 'ls': 'None'},
 }

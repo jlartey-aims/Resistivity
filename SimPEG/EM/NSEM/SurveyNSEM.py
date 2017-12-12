@@ -19,7 +19,9 @@ from numpy.lib import recfunctions as recFunc
 
 from SimPEG import Survey as SimPEGsurvey, mkvc
 from .SrcNSEM import BaseNSEMSrc, Planewave_xy_1Dprimary, Planewave_xy_1DhomotD
-from .RxNSEM import Point_impedance3D, Point_tipper3D, Point_horizontalmagvar3D
+from .RxNSEM import (
+    Point_impedance1D, Point_impedance3D,
+    Point_tipper3D, Point_horizontalmagvar3D)
 from .Utils.plotUtils import DataNSEM_plot_functions
 
 #########
@@ -146,6 +148,8 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
                     zt_type = 'z'
                 elif isinstance(rx, Point_tipper3D):
                     zt_type = 't'
+                elif isinstance(rx, Point_impedance1D):
+                    zt_type = 'z'
                 else:
                     raise TypeError('Not implement for a receiver type {}'.format(str(rx)))
                 key = zt_type + rx.orientation + rx.component[0]
@@ -226,7 +230,7 @@ class Data(SimPEGsurvey.Data, DataNSEM_plot_functions):
                             rxList.append(
                                 Point_impedance3D(locs, rxType[1:3], component))
                             dataList.append(dFreq[rxType][notNaNind].copy())
-                        if 'z' in rxType:
+                        if 'm' in rxType:
                             rxList.append(
                                 Point_horizontalmagvar3D(locs, rxType[1:3], component))
                             dataList.append(dFreq[rxType][notNaNind].copy())

@@ -24,13 +24,16 @@ class BaseNSEMSrc(FDEMBaseSrc, properties.HasProperties):
 
     '''
 
-    rxList = properties.List(
-        "List of NSEM receivers",
-        required=True,
-        prop=properties.Instance(
-            'NSEM receiver', RxNSEM.BaseRxNSEM_Point
-        )
-    )
+    # Issues with this
+    # rxList = properties.List(
+    #     "List of NSEM receivers",
+    #     required=True,
+    #     prop=properties.Instance(
+    #         'NSEM receiver',
+    #         RxNSEM.BaseRxNSEM_Point,
+    #         auto_create=False)
+    # )
+
     freq = properties.Float(
         "frequency of the source",
         min=0,
@@ -76,19 +79,19 @@ class Planewave_xy_1Dprimary(BaseNSEMSrc):
 
     """
 
-    def __init__(self, *args):
+    def __init__(self, rxList, *args):
         """
 
         """
         # Note write as properties
         self.sigma1d = None
         # Assume the args are order (rxList, freq)
-        self.rxList = args[0]
-        self.freq = args[1]
+        self.rxList = rxList #args[0]
+        self.freq = args[0] #args[1]
 
         BaseNSEMSrc.__init__(
             self,
-            self._get('rxList')
+            self.rxList
         )
 
 
@@ -124,17 +127,20 @@ class Planewave_xy_1Dprimary(BaseNSEMSrc):
         Get the electrical field source
         """
         e_p = self.ePrimary(problem)
-        Map_sigma_p = Maps.SurjectVertical1D(problem.mesh)
-        sigma_p = Map_sigma_p._transform(self.sigma1d)
+
         # Make mass matrix
         # Note: M(sig) - M(sig_p) = M(sig - sig_p)
         # Need to deal with the edge/face discrepencies between 1d/2d/3d
         if problem.mesh.dim == 1:
             Mesigma = problem.mesh.getFaceInnerProduct(problem.sigma)
-            Mesigma_p = problem.mesh.getFaceInnerProduct(sigma_p)
+            Mesigma_p = problem.mesh.getFaceInnerProduct(self.sigma1d)
         if problem.mesh.dim == 2:
             pass
         if problem.mesh.dim == 3:
+            # If the primary model is 1D, it has to be projected to 3D
+            if problem._sigmaPrimary.shape == problem.mesh.nCz:
+                Map_sigma_p = Maps.SurjectVertical1D(problem.mesh)
+                sigma_p = Map_sigma_p._transform(self.sigma1d)
             Mesigma = problem.MeSigma
             Mesigma_p = problem.mesh.getEdgeInnerProduct(sigma_p)
         return (Mesigma - Mesigma_p) * e_p
