@@ -10,7 +10,7 @@ from SimPEG.EM.Static import DC
 from SimPEG.Utils import asArray_N_x_Dim, uniqueRows
 
 
-def plot_pseudoSection(DCsurvey, axs, surveyType='dipole-dipole', dataType="appConductivity", clim=None, scale="linear", sameratio=True, pcolorOpts={}):
+def plot_pseudoSection(DCsurvey, axs, dobs=None, surveyType='dipole-dipole', dataType="appConductivity", clim=None, scale="linear", sameratio=True, pcolorOpts={}):
     """
         Read list of 2D tx-rx location and plot a speudo-section of apparent
         resistivity.
@@ -42,6 +42,9 @@ def plot_pseudoSection(DCsurvey, axs, surveyType='dipole-dipole', dataType="appC
     LEG = []
     count = 0  # Counter for data
 
+    if dobs is None:
+        dobs = DCsurvey.dobs
+
     for ii in range(DCsurvey.nSrc):
 
         Tx = DCsurvey.srcList[ii].loc
@@ -49,7 +52,7 @@ def plot_pseudoSection(DCsurvey, axs, surveyType='dipole-dipole', dataType="appC
 
         nD = DCsurvey.srcList[ii].rxList[0].nD
 
-        data = DCsurvey.dobs[count:count+nD]
+        data = dobs[count:count+nD]
         count += nD
 
         # Get distances between each poles A-B-M-N
@@ -827,7 +830,7 @@ def readUBC_DC2DModel(fileName):
 
 def readUBC_DC2Dpre(fileName):
     """
-        Read UBC GIF DCIP 2D observation file and generate arrays 
+        Read UBC GIF DCIP 2D observation file and generate arrays
         for tx-rx location
 
         Input:
