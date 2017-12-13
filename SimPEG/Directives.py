@@ -708,82 +708,94 @@ class Update_IRLS(InversionDirective):
         dList = directiveList.dList
         self_ind = dList.index(self)
         lin_precond_ind = [
-            isinstance(d, Update_lin_PreCond) for d in dList
+            isinstance(d, UpdateJacobiPrecond) for d in dList
         ]
 
         if any(lin_precond_ind):
             assert(lin_precond_ind.index(True) > self_ind), (
-                "The directive 'Update_lin_PreCond' must be after Update_IRLS "
+                "The directive 'UpdateJacobiPrecond' must be after Update_IRLS "
                 "in the directiveList"
             )
         else:
             warnings.warn(
                 "Without a Linear preconditioner, convergence may be slow. "
-                "Consider adding `Directives.Update_lin_PreCond` to your "
+                "Consider adding `Directives.UpdateJacobiPrecond` to your "
                 "directives list"
             )
         return True
 
 
-class Update_lin_PreCond(InversionDirective):
+class UpdateJacobiPrecond(InversionDirective):
     """
     Create a Jacobi preconditioner for the linear problem
     """
     onlyOnStart = False
     mapping = None
-    ComboObjFun = False
+    misfitDiag = None
+    epsilon = 1e-8
 
     def initialize(self):
 
-        # Check if it is a ComboObjective
-        if not isinstance(self.reg, Regularization.BaseComboRegularization):
+        # Create the pre-conditioner
+        regDiag = np.zeros_like(self.invProb.model)
 
-            # It is a Combo objective, so will have to loop
-            self.ComboObjFun = True
-
-        if getattr(self, 'mapping', None) is None:
-            self.mapping = Maps.IdentityMap(nP=self.reg.mapping.nP)
-
-        if getattr(self.opt, 'approxHinv', None) is None:
-
-            # Update the pre-conditioner
-            if self.ComboObjFun:
-
-                reg_diag = []
-                for reg in self.reg.objfcts:
-                    reg_diag.append(self.invProb.beta*(reg.W.T*reg.W).diagonal())
-
-                diagA = np.sum(self.prob.Jmat**2., axis=0) + np.hstack(reg_diag)
-
+        for reg in self.reg.objfcts:
+            # Check if regularization has a projection
+            if getattr(reg.mapping, 'P', None) is None:
+                regDiag += (reg.W.T*reg.W).diagonal()
             else:
-                diagA = (np.sum(self.prob.Jmat**2., axis=0) +
-                         self.invProb.beta*(self.reg.W.T*self.reg.W).diagonal())
+                P = reg.mapping.P
+                regDiag += (P.T * (reg.W.T * (reg.W * P))).diagonal()
 
-            PC = Utils.sdiag((self.mapping.deriv(None).T * diagA)**-1.)
-            self.opt.approxHinv = PC
+        # Deal with the linear case
+        if getattr(self.opt, 'JtJdiag', None) is None:
+
+            print("Approximated diag(JtJ) with linear operator")
+
+            JtJdiag = np.zeros_like(self.invProb.model)
+
+            for prob, dmisfit in zip(self.prob, self.dmisfit.objfcts):
+
+                assert hasattr(prob, 'getJ') is True, (
+                       'Check that problem can form J explicitly')
+
+                m = self.invProb.model
+                f = prob.fields(m)
+                wd = dmisfit.W.diagonal()
+                if getattr(prob, 'Jmat', None) is not None:
+                    JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
+                else:
+                    prob.getJ(m)
+                    JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
+
+                # JtJdiag += np.sum((dmisfit.W * prob.getJ(m, f))**2., axis=0)
+            self.opt.JtJdiag = JtJdiag
+
+        diagA = self.opt.JtJdiag + self.invProb.beta*regDiag
+
+        PC = Utils.sdiag((diagA)**-1.)
+        self.opt.approxHinv = PC
 
     def endIter(self):
         # Cool the threshold parameter
         if self.onlyOnStart is True:
             return
 
-        if getattr(self.opt, 'approxHinv', None) is not None:
-            # Update the pre-conditioner
-            # Update the pre-conditioner
-            if self.ComboObjFun:
+        # Create the pre-conditioner
+        regDiag = np.zeros_like(self.invProb.model)
 
-                reg_diag = []
-                for reg in self.reg.objfcts:
-                    reg_diag.append(self.invProb.beta*(reg.W.T*reg.W).diagonal())
-
-                diagA = np.sum(self.prob.Jmat**2., axis=0) + np.hstack(reg_diag)
-
+        for reg in self.reg.objfcts:
+            # Check if he has wire
+            if getattr(reg.mapping, 'P', None) is None:
+                regDiag += (reg.W.T*reg.W).diagonal()
             else:
-                diagA = (np.sum(self.prob.Jmat**2., axis=0) +
-                         self.invProb.beta*(self.reg.W.T*self.reg.W).diagonal())
+                P = reg.mapping.P
+                regDiag += (P.T * (reg.W.T * (reg.W * P))).diagonal()
+        # Assumes that opt.JtJdiag has been updated or static
+        diagA = self.opt.JtJdiag + self.invProb.beta*regDiag
 
-            PC = Utils.sdiag((self.mapping.deriv(None).T * diagA)**-1.)
-            self.opt.approxHinv = PC
+        PC = Utils.sdiag((diagA)**-1.)
+        self.opt.approxHinv = PC
 
 
 class Update_Wj(InversionDirective):
