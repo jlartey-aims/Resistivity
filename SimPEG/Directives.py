@@ -49,17 +49,20 @@ class InversionDirective(object):
     @property
     def reg(self):
         if getattr(self, '_reg', None) is None:
-            self._reg = self.invProb.reg
+            self.reg = self.invProb.reg  # go through the setter
         return self._reg
 
     @reg.setter
     def reg(self, value):
-        assert any([isinstance(value, regtype) for regtype in self._regPair]),(
+        assert any([isinstance(value, regtype) for regtype in self._regPair]), (
             "Regularization must be in {}, not {}".format(
                 self._regPair, type(value)
             )
         )
-        self._reg = reg
+
+        if isinstance(value, Regularization.BaseComboRegularization):
+            value = 1*value  # turn it into a combo objective function
+        self._reg = value
 
     @property
     def dmisfit(self):
@@ -83,11 +86,19 @@ class InversionDirective(object):
 
     @property
     def survey(self):
-        return self.dmisfit.survey
+        """
+           Assuming that dmisfit is always a ComboObjectiveFunction,
+           return a list of surveys for each dmisfit [survey1, survey2, ... ]
+        """
+        return [objfcts.survey for objfcts in self.dmisfit.objfcts]
 
     @property
     def prob(self):
-        return self.dmisfit.prob
+        """
+           Assuming that dmisfit is always a ComboObjectiveFunction,
+           return a list of problems for each dmisfit [prob1, prob2, ...]
+        """
+        return [objfcts.prob for objfcts in self.dmisfit.objfcts]
 
     def initialize(self):
         pass
