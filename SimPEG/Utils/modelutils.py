@@ -2,8 +2,12 @@ from .matutils import mkvc, ndgrid, uniqueRows
 import numpy as np
 from scipy.interpolate import griddata, interp1d
 from scipy.interpolate import NearestNDInterpolator, LinearNDInterpolator
+import discretize as Mesh
+from discretize.utils import closestPoints
 
-def surface2ind_topo(mesh, topo, gridLoc='CC', method='nearest', fill_value=np.nan):
+
+def surface2ind_topo(mesh, topo, gridLoc='CC',
+                     method='nearest', fill_value=np.nan):
     """
     Get active indices from topography
 
