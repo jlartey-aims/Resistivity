@@ -791,8 +791,24 @@ class UpdateJacobiPrecond(InversionDirective):
             else:
                 P = reg.mapping.P
                 regDiag += (P.T * (reg.W.T * (reg.W * P))).diagonal()
+
+        JtJdiag = np.zeros_like(self.invProb.model)
+
+        for prob, dmisfit in zip(self.prob, self.dmisfit.objfcts):
+
+            assert hasattr(prob, 'getJ') is True, (
+                   'Check that problem can form J explicitly')
+
+            m = self.invProb.model
+            f = prob.fields(m)
+            wd = dmisfit.W.diagonal()
+            if getattr(prob, 'Jmat', None) is not None:
+                JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
+            else:
+                prob.getJ(m)
+                JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
         # Assumes that opt.JtJdiag has been updated or static
-        diagA = self.opt.JtJdiag + self.invProb.beta*regDiag
+        diagA = JtJdiag + self.invProb.beta*regDiag
 
         PC = Utils.sdiag((diagA)**-1.)
         self.opt.approxHinv = PC
