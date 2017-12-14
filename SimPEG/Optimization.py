@@ -1123,72 +1123,72 @@ class ProjectedGNCG(BFGS, Minimize, Remember):
         temp = sum((np.ones_like(self.xc.size)-Active))
         allBoundsAreActive = temp == self.xc.size
 
-        if allBoundsAreActive:
-            Hinv = SolverICG(
-                self.H, M=self.approxHinv, tol=self.tolCG,
-                maxiter=self.maxIterCG
-            )
-            p = Hinv * (-self.g)
-            return p
-        else:
-            delx = np.zeros(self.g.size)
-            resid = -(1-Active) * self.g
+        # if allBoundsAreActive:
+        #     Hinv = SolverICG(
+        #         self.H, M=self.approxHinv, tol=self.tolCG,
+        #         maxiter=self.maxIterCG
+        #     )
+        #     p = Hinv * (-self.g)
+        #     return p
+        # else:
+        delx = np.zeros(self.g.size)
+        resid = -(1-Active) * self.g
 
-            # Begin CG iterations.
-            cgiter = 0
-            cgFlag = 0
-            normResid0 = norm(resid)
+        # Begin CG iterations.
+        cgiter = 0
+        cgFlag = 0
+        normResid0 = norm(resid)
 
-            while cgFlag == 0:
+        while cgFlag == 0:
 
-                cgiter = cgiter + 1
-                dc = (1-Active)*(self.approxHinv*resid)
-                rd = np.dot(resid, dc)
+            cgiter = cgiter + 1
+            dc = (1-Active)*(self.approxHinv*resid)
+            rd = np.dot(resid, dc)
 
-                #  Compute conjugate direction pc.
-                if cgiter == 1:
-                    pc = dc
-                else:
-                    betak = rd / rdlast
-                    pc = dc + betak * pc
+            #  Compute conjugate direction pc.
+            if cgiter == 1:
+                pc = dc
+            else:
+                betak = rd / rdlast
+                pc = dc + betak * pc
 
-                #  Form product Hessian*pc.
-                Hp = self.H*pc
-                Hp = (1-Active)*Hp
+            #  Form product Hessian*pc.
+            Hp = self.H*pc
+            Hp = (1-Active)*Hp
 
-                #  Update delx and residual.
-                alphak = rd / np.dot(pc, Hp)
-                delx = delx + alphak*pc
-                resid = resid - alphak*Hp
-                rdlast = rd
+            #  Update delx and residual.
+            alphak = rd / np.dot(pc, Hp)
+            delx = delx + alphak*pc
+            resid = resid - alphak*Hp
+            rdlast = rd
 
-                if np.logical_or(
-                    norm(resid)/normResid0 <= self.tolCG,
-                    cgiter == self.maxIterCG
-                ):
-                    cgFlag = 1
-                # End CG Iterations
+            if np.logical_or(
+                norm(resid)/normResid0 <= self.tolCG,
+                cgiter == self.maxIterCG
+            ):
+                cgFlag = 1
+            # End CG Iterations
 
-            # Take a gradient step on the active cells if exist
-            if self.stepActiveset:
-                if temp != self.xc.size:
+        # Take a gradient step on the active cells if exist
+        if self.stepActiveset:
+            if temp != self.xc.size:
 
-                    rhs_a = (Active) * -self.g
+                rhs_a = (Active) * -self.g
 
-                    dm_i = max( abs( delx ) )
-                    dm_a = max( abs(rhs_a) )
+                dm_i = max( abs( delx ) )
+                dm_a = max( abs(rhs_a) )
 
                 # perturb inactive set off of bounds so that they are included
                 # in the step
                 delx = delx + self.stepOffBoundsFact * (rhs_a * dm_i / dm_a)
 
 
-            # Only keep gradients going in the right direction on the active
-            # set
-            indx = (
-                ((self.xc<=self.lower) & (delx < 0)) |
-                ((self.xc>=self.upper) & (delx > 0))
-            )
-            delx[indx] = 0.
+        # Only keep gradients going in the right direction on the active
+        # set
+        indx = (
+            ((self.xc<=self.lower) & (delx < 0)) |
+            ((self.xc>=self.upper) & (delx > 0))
+        )
+        delx[indx] = 0.
 
-            return delx
+        return delx

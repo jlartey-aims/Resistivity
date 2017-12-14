@@ -250,7 +250,13 @@ class TargetMisfit(InversionDirective):
         if getattr(self, '_target', None) is None:
             # the factor of 0.5 is because we do phid = 0.5*|| dpred - dobs||^2
             if self.phi_d_star is None:
-                self.phi_d_star = 0.5 * self.survey.nD
+
+                nD = 0
+                for survey in self.survey:
+                    nD += survey.nD
+
+                self.phi_d_star = 0.5 * nD
+
             self._target = self.chifact * self.phi_d_star
         return self._target
 
@@ -534,6 +540,7 @@ class Update_IRLS(InversionDirective):
     minGNiter = 5
     maxIRLSiter = 10
     iterStart = 0
+    phi_d_star = None
 
     # Beta schedule
     coolingFactor = 2.
@@ -544,7 +551,16 @@ class Update_IRLS(InversionDirective):
     @property
     def target(self):
         if getattr(self, '_target', None) is None:
-            self._target = self.survey.nD*0.5*self.chifact
+            # the factor of 0.5 is because we do phid = 0.5*|| dpred - dobs||^2
+            if self.phi_d_star is None:
+
+                nD = 0
+                for survey in self.survey:
+                    nD += survey.nD
+
+                self.phi_d_star = 0.5 * nD
+
+            self._target = self.chifact * self.phi_d_star
         return self._target
 
     @target.setter
@@ -819,11 +835,10 @@ class UpdateJacobiPrecond(InversionDirective):
             m = self.invProb.model
             f = prob.fields(m)
             wd = dmisfit.W.diagonal()
-            if getattr(prob, 'Jmat', None) is not None:
-                JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
-            else:
+            if getattr(prob, 'Jmat', None) is None:
+
                 prob.getJ(m)
-                JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
+            JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
         # Assumes that opt.JtJdiag has been updated or static
         diagA = JtJdiag + self.invProb.beta*regDiag
 
@@ -857,6 +872,7 @@ class Update_Wj(InversionDirective):
 
             self.reg.wght = JtJdiag
 
+
 class UpdateSensWeighting(InversionDirective):
     """
     Directive to take care of re-weighting
@@ -881,7 +897,7 @@ class UpdateSensWeighting(InversionDirective):
     def endIter(self):
 
         # Re-initialize the problem for update
-        for prob in [self.prob]:
+        for prob in self.prob:
 
             if getattr(prob, 'coordinate_system', None) is not None:
                 if prob.coordinate_system == 'spherical':
@@ -914,20 +930,17 @@ class UpdateSensWeighting(InversionDirective):
         """
         self.JtJdiag = []
 
-        for prob, survey, dmisfit in zip([self.prob],
-                                         [self.survey],
-                                         [self.dmisfit]):
-
-            JtJdiag = np.zeros_like(self.invProb.model)
+        for prob, survey, dmis in zip(self.prob,
+                                         self.survey,
+                                         self.dmisfit.objfcts):
 
             m = self.invProb.model
             f = prob.fields(m)
 
-            if getattr(prob, 'Jmat', None) is not None:
-                JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
-            else:
+            if getattr(prob, 'Jmat', None) is None:
                 prob.getJ(m)
-                JtJdiag += np.sum((dmisfit.W * prob.Jmat)**2., axis=0)
+
+            JtJdiag = np.sum((dmis.W * prob.Jmat)**2., axis=0)
 
             # Apply scale to the deriv and deriv2
             # dmisfit.scale = scale
@@ -946,13 +959,21 @@ class UpdateSensWeighting(InversionDirective):
             a normalized sensitivty weighting vector
         """
         wr = np.zeros_like(self.invProb.model)
+        m = self.invProb.model
 
-        for prob_JtJ in self.JtJdiag:
-            wr += prob_JtJ
+        for prob in self.prob:
 
-        wr += self.epsilon
+            f = prob.fields(m)
+
+            if getattr(prob, 'Jmat', None) is None:
+                prob.getJ(m)
+
+            wr += np.sum((prob.Jmat)**2., axis=0)
+
+
         wr = wr**0.5
         wr /= wr.max()
+        wr += self.epsilon
 
         return wr
 
@@ -962,7 +983,7 @@ class UpdateSensWeighting(InversionDirective):
         """
 
         for reg in self.reg.objfcts:
-            reg.cell_weights = reg.mapping * (self.wr)
+            reg.cell_weights = reg.mapping * self.wr
 
     def updateOpt(self):
         """
@@ -970,7 +991,7 @@ class UpdateSensWeighting(InversionDirective):
         """
 
         JtJdiag = np.zeros_like(self.invProb.model)
-        for prob, JtJ, dmisfit in zip([self.prob], self.JtJdiag, [self.dmisfit]):
+        for JtJ in self.JtJdiag:
 
             JtJdiag += JtJ
 
