@@ -138,7 +138,7 @@ class Planewave_xy_1Dprimary(BaseNSEMSrc):
             pass
         if problem.mesh.dim == 3:
             # If the primary model is 1D, it has to be projected to 3D
-            if problem._sigmaPrimary.shape == problem.mesh.nCz:
+            if problem._sigmaPrimary.shape[0] == problem.mesh.nCz:
                 Map_sigma_p = Maps.SurjectVertical1D(problem.mesh)
                 sigma_p = Map_sigma_p._transform(self.sigma1d)
             Mesigma = problem.MeSigma
