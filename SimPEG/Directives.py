@@ -578,6 +578,7 @@ class Update_IRLS(InversionDirective):
     ComboObjFun = False
     mode = 1
 
+    printIter = True
     @property
     def target(self):
         if getattr(self, '_target', None) is None:
@@ -631,7 +632,8 @@ class Update_IRLS(InversionDirective):
         if np.all(
             [self.invProb.phi_d < self.start, self.mode == 1]
         ):
-            print("Reached starting chifact with l2-norm regularization: Start IRLS steps...")
+            if self.printIter:
+                print("Reached starting chifact with l2-norm regularization: Start IRLS steps...")
 
             self.mode = 2
             self.iterStart = self.opt.iter
@@ -659,15 +661,17 @@ class Update_IRLS(InversionDirective):
             # Re-assign the norms supplied by user l2 -> lp
             for reg, norms in zip(self.reg.objfcts, self.norms):
                 reg.norms = norms
-                print("L[p qx qy qz]-norm : " + str(reg.norms))
+                if self.printIter:
+                    print("L[p qx qy qz]-norm : " + str(reg.norms))
 
             # Save l2-model
             self.invProb.l2model = self.invProb.model.copy()
 
             # Print to screen
             for reg in self.reg.objfcts:
-                print("eps_p: " + str(reg.eps_p) +
-                      " eps_q: " + str(reg.eps_q))
+                if self.printIter:
+                    print("eps_p: " + str(reg.eps_p) +
+                          " eps_q: " + str(reg.eps_q))
 
         # Only update after GN iterations
         if np.all(
@@ -676,7 +680,8 @@ class Update_IRLS(InversionDirective):
 
             # Check for maximum number of IRLS cycles
             if self.IRLSiter == self.maxIRLSiter:
-                print("Reach maximum number of IRLS cycles: {0:d}".format(self.maxIRLSiter))
+                if self.printIter:
+                    print("Reach maximum number of IRLS cycles: {0:d}".format(self.maxIRLSiter))
                 self.opt.stopNextIteration = True
                 return
 
@@ -712,10 +717,13 @@ class Update_IRLS(InversionDirective):
             # phim_new = self.reg(self.invProb.model)
             self.f_change = np.abs(self.f_old - phim_new) / self.f_old
 
-            print("Phim relative change: {0:6.3e}".format((self.f_change)))
+            if self.printIter:
+                print("Phim relative change: {0:6.3e}".format((self.f_change)))
             # Check if the function has changed enough
             if self.f_change < self.f_min_change and self.IRLSiter > 1:
-                print("Minimum decrease in regularization. End of IRLS")
+
+                if self.printIter:
+                    print("Minimum decrease in regularization. End of IRLS")
                 self.opt.stopNextIteration = True
                 return
             else:
@@ -737,14 +745,16 @@ class Update_IRLS(InversionDirective):
         # Beta Schedule
         if np.all([self.invProb.phi_d < self.target,
                    self.mode == 2]):
-            print("Target chifact overshooted, adjusting beta ...")
+            if self.printIter:
+                print("Target chifact overshooted, adjusting beta ...")
             self.mode = 3
 
         if np.all([self.opt.iter > 0, self.opt.iter % self.coolingRate == 0,
                    self.mode != 3]):
 
             if self.debug:
-                print('BetaSchedule is cooling Beta. Iteration: {0:d}'.format(self.opt.iter))
+                if self.printIter:
+                    print('BetaSchedule is cooling Beta. Iteration: {0:d}'.format(self.opt.iter))
 
             self.invProb.beta /= self.coolingFactor
 
