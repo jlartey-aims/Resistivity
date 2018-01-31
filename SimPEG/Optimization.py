@@ -186,7 +186,7 @@ class Minimize(object):
     comment = ''  #: Used by some functions to indicate what is going on in the algorithm
     counter = None  #: Set this to a SimPEG.Utils.Counter() if you want to count things
     parent = None  #: This is the parent of the optimization routine.
-    printIter = True
+    silent = False
 
     def __init__(self, **kwargs):
         self.stoppers = [
@@ -272,7 +272,7 @@ class Minimize(object):
         self.evalFunction = evalFunction
         self.startup(x0)
 
-        if self.printIter:
+        if not self.silent:
             self.printInit()
             print('x0 has any nan: {:b}'.format(np.any(np.isnan(x0))))
 
@@ -282,7 +282,7 @@ class Minimize(object):
                 self.xc, return_g=True, return_H=True
             )
 
-            if self.printIter:
+            if not self.silent:
                 self.printIter()
 
             if self.stoppingCriteria():
@@ -299,7 +299,7 @@ class Minimize(object):
             if self.stopNextIteration:
                 break
 
-        if self.printIter:
+        if not self.silent:
             self.printDone()
         self.finish()
 
