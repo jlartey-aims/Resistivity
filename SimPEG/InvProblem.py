@@ -92,22 +92,22 @@ class BaseInvProblem(Props.BaseSimPEG):
         self.model = m0
 
         if isinstance(self.dmisfit, DataMisfit.BaseDataMisfit):
-            print("""
-    SimPEG.InvProblem is setting bfgsH0 to the inverse of the eval2Deriv.
-    ***Done using same Solver and solverOpts as the problem***"""
-            )
+    #         print("""
+    # SimPEG.InvProblem is setting bfgsH0 to the inverse of the eval2Deriv.
+    # ***Done using same Solver and solverOpts as the problem***"""
+    #         )
             self.opt.bfgsH0 = self.dmisfit.prob.Solver(
                 self.reg.deriv2(self.model), **self.dmisfit.prob.solverOpts
             )
         elif isinstance(self.dmisfit, ObjectiveFunction.BaseObjectiveFunction):
             for objfct in self.dmisfit.objfcts:
                 if isinstance(objfct, DataMisfit.BaseDataMisfit):
-                    print("""
-    SimPEG.InvProblem is setting bfgsH0 to the inverse of the eval2Deriv.
-    ***Done using same Solver and solverOpts as the {} problem***""".format(
-                            objfct.prob.__class__.__name__
-                        )
-                    )
+    #                 print("""
+    # SimPEG.InvProblem is setting bfgsH0 to the inverse of the eval2Deriv.
+    # ***Done using same Solver and solverOpts as the {} problem***""".format(
+    #                         objfct.prob.__class__.__name__
+    #                     )
+    #                 )
                     self.opt.bfgsH0 = objfct.prob.Solver(
                         self.reg.deriv2(self.model), **objfct.prob.solverOpts
                     )
