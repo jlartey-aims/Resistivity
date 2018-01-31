@@ -776,13 +776,17 @@ def writeUBC_DCobs(
 
         if dim == 3:
             fid = open(fileName, 'a')
-            # Flip sign of z value for UBC DCoctree code
-            tx[:, 2] = -tx[:, 2]
-            # print(tx)
+
+            # After extensive testing I don't believe that we should be
+            # flipping the sign of the z value for the 3D UBC DC codes.
+            # micmitch Jan. 2018
 
             # Flip sign of z value for UBC DCoctree code
-            M[:, 2] = -M[:, 2]
-            N[:, 2] = -N[:, 2]
+            # tx[:, 2] = -tx[:, 2]
+
+            # Flip sign of z value for UBC DCoctree code
+            # M[:, 2] = -M[:, 2]
+            # N[:, 2] = -N[:, 2]
 
             if format_type == 'SURFACE':
 
@@ -969,13 +973,17 @@ def writeUBC_DClocs(
 
         if dim == 3:
             fid = open(fileName, 'a')
+            # After extensive testing I don't believe that we should be
+            # flipping the sign of the z value for the 3D UBC DC codes.
+            # micmitch Jan. 2018
+
             # Flip sign of z value for UBC DCoctree code
-            tx[:, 2] = -tx[:, 2]
+            # tx[:, 2] = -tx[:, 2]
             # print(tx)
 
             # Flip sign of z value for UBC DCoctree code
-            M[:, 2] = -M[:, 2]
-            N[:, 2] = -N[:, 2]
+            # M[:, 2] = -M[:, 2]
+            # N[:, 2] = -N[:, 2]
 
             if format_type == 'SURFACE':
 
@@ -1279,12 +1287,17 @@ def readUBC_DC3Dobs(fileName):
                 # check if pole-dipole
                 if np.allclose(temp[0:3], temp[3:6]):
                     tx = np.r_[temp[0:3]]
+
                     poletx = True
-                    temp[2] = -temp[2]
+                    # After extensive testing I don't believe that we should be
+                    # flipping the sign of the z value for the 3D UBC DC codes.
+                    # micmitch Jan. 2018
+
+                    # temp[2] = -temp[2]
                 else:
                     # Flip z values
-                    temp[2] = -temp[2]
-                    temp[5] = -temp[5]
+                    # temp[2] = -temp[2]
+                    # temp[5] = -temp[5]
                     tx = temp[:-1]
 
             continue
@@ -1300,8 +1313,8 @@ def readUBC_DC3Dobs(fileName):
             #     temp[2] = -temp[2]
             #     rx.append(temp[:3])
             # else:
-            temp[2] = -temp[2]
-            temp[5] = -temp[5]
+            # temp[2] = -temp[2]
+            # temp[5] = -temp[5]
             rx.append(temp[:-2])
 
             # Check if there is data with the location
