@@ -576,7 +576,7 @@ class IO(properties.HasProperties):
                 x0_for_mesh = [x0_mesh, y0_mesh, z0_mesh]
                 self.xyzlim = np.vstack((
                     np.r_[x0, x0+lineLength],
-                    np.r_[ymin, ymax],
+                    np.r_[ymin-dy*3, ymax+dy*3],
                     np.r_[zmax-corezlength, zmax]
                 ))
             mesh = Mesh.TensorMesh(h, x0=x0_for_mesh)
