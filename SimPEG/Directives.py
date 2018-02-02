@@ -577,6 +577,7 @@ class Update_IRLS(InversionDirective):
     coolingRate = 1
     ComboObjFun = False
     mode = 1
+    coolEps = False
 
     silent = False
     @property
@@ -684,6 +685,14 @@ class Update_IRLS(InversionDirective):
                     print("Reach maximum number of IRLS cycles: {0:d}".format(self.maxIRLSiter))
                 self.opt.stopNextIteration = True
                 return
+
+            if self.coolEps:
+                for reg in self.reg.objfcts:
+
+                    if reg.eps_q > 1e-3:
+                        reg.eps_q /= 5.
+                    if reg.eps_p > 1e-3:
+                        reg.eps_p /= 5.
 
             # phi_m_last = []
             for reg in self.reg.objfcts:
