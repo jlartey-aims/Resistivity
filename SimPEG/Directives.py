@@ -359,24 +359,37 @@ class SaveOutputEveryIteration(SaveEveryIteration):
 
         phi_s, phi_x, phi_y, phi_z = 0, 0, 0, 0
         for reg in self.reg.objfcts:
-            phi_s += (
-                reg.objfcts[0](self.invProb.model) * reg.alpha_s
-            )
-            phi_x += (
-                reg.objfcts[1](self.invProb.model) * reg.alpha_x
-            )
 
-            if reg.regmesh.dim == 2:
-                phi_y += (
-                    reg.objfcts[2](self.invProb.model) * reg.alpha_y
-                )
-            elif reg.regmesh.dim == 3:
-                phi_y += (
-                    reg.objfcts[2](self.invProb.model) * reg.alpha_y
-                )
-                phi_z += (
-                    reg.objfcts[3](self.invProb.model) * reg.alpha_z
-                )
+            f_m = reg.objfcts[0].f_m
+            phi_s += np.sum(f_m**2./(f_m**2. + 1e-8)**(1-reg.objfcts[0].norm/2.))
+
+            f_m = reg.objfcts[1].f_m
+            phi_x += np.sum(f_m**2./(f_m**2. + 1e-8)**(1-reg.objfcts[1].norm/2.))
+            # phi_s += (
+            #     reg.objfcts[0](self.invProb.model) * reg.alpha_s
+            # )
+            # phi_x += (
+            #     reg.objfcts[1](self.invProb.model) * reg.alpha_x
+            # )
+
+            if reg.regmesh.dim > 1:
+                f_m = reg.objfcts[2].f_m
+                phi_x += np.sum(f_m**2./(f_m**2. + 1e-8)**(1-reg.objfcts[2].norm/2.))
+
+            if reg.regmesh.dim > 2:
+                f_m = reg.objfcts[3].f_m
+                phi_x += np.sum(f_m**2./(f_m**2. + 1e-8)**(1-reg.objfcts[3].norm/2.))
+
+            #     phi_y += (
+            #         reg.objfcts[2](self.invProb.model) * reg.alpha_y
+            #     )
+            # elif reg.regmesh.dim == 3:
+            #     phi_y += (
+            #         reg.objfcts[2](self.invProb.model) * reg.alpha_y
+            #     )
+            #     phi_z += (
+            #         reg.objfcts[3](self.invProb.model) * reg.alpha_z
+            #     )
 
         self.beta.append(self.invProb.beta)
         self.phi_d.append(self.invProb.phi_d)
@@ -430,7 +443,7 @@ class SaveOutputEveryIteration(SaveEveryIteration):
                 i_target += 1
             self.i_target = i_target
 
-    def plot_misfit_curves(self, fname=None, plot_small_smooth=False):
+    def plot_misfit_curves(self, fname=None, fig=None, ax=None, plot_small_smooth=False):
 
         self.target_misfit = self.invProb.dmisfit.prob.survey.nD / 2.
         self.i_target = None
@@ -441,8 +454,11 @@ class SaveOutputEveryIteration(SaveEveryIteration):
                 i_target += 1
             self.i_target = i_target
 
-        fig = plt.figure(figsize=(5, 2))
-        ax = plt.subplot(111)
+        if fig is None:
+            fig = plt.figure(figsize=(5, 2))
+
+        if ax is None:
+            ax = plt.subplot(111)
         ax_1 = ax.twinx()
         ax.semilogy(np.arange(len(self.phi_d)), self.phi_d, 'k-', lw=2)
         ax_1.semilogy(np.arange(len(self.phi_d)), self.phi_m, 'r', lw=2)
@@ -459,7 +475,7 @@ class SaveOutputEveryIteration(SaveEveryIteration):
         ax_1.set_ylabel("$\phi_m$", color='r')
         for tl in ax_1.get_yticklabels():
             tl.set_color('r')
-        plt.show()
+        # plt.show()
 
     def plot_tikhonov_curves(self, fname=None, dpi=200):
 
@@ -579,6 +595,7 @@ class Update_IRLS(InversionDirective):
     mode = 1
     coolEps = False
     floorEps = 1e-8
+    coolEpsFact = 2.
     silent = False
 
     @property
@@ -621,6 +638,8 @@ class Update_IRLS(InversionDirective):
             self.norms.append(reg.norms)
             reg.norms = [2., 2., 2., 2.]
             reg.model = self.invProb.model
+
+        self.phi_dm = []
 
     def endIter(self):
 
@@ -687,13 +706,14 @@ class Update_IRLS(InversionDirective):
                 self.opt.stopNextIteration = True
                 return
 
+            self.phi_dm += [np.sum((self.invProb.l2model - self.invProb.model)**2.)]
             if self.coolEps:
-                for reg in self.reg.objfcts:
 
+                for reg in self.reg.objfcts:
                     if reg.eps_q > self.floorEps:
-                        reg.eps_q /= 5.
+                        reg.eps_q /= self.coolEpsFact
                     if reg.eps_p > self.floorEps:
-                        reg.eps_p /= 5.
+                        reg.eps_p /= self.coolEpsFact
 
             # phi_m_last = []
             for reg in self.reg.objfcts:
