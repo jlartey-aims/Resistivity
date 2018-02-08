@@ -594,7 +594,8 @@ class Update_IRLS(InversionDirective):
     ComboObjFun = False
     mode = 1
     coolEps = False
-    floorEps = 1e-8
+    floorEps_p = 1e-8
+    floorEps_q = 1e-8
     coolEpsFact = 2.
     silent = False
 
@@ -710,9 +711,9 @@ class Update_IRLS(InversionDirective):
             if self.coolEps:
 
                 for reg in self.reg.objfcts:
-                    if reg.eps_q > self.floorEps:
+                    if reg.eps_q > self.floorEps_q:
                         reg.eps_q /= self.coolEpsFact
-                    if reg.eps_p > self.floorEps:
+                    if reg.eps_p > self.floorEps_p:
                         reg.eps_p /= self.coolEpsFact
 
             # phi_m_last = []
