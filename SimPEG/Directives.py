@@ -593,7 +593,8 @@ class Update_IRLS(InversionDirective):
     coolingRate = 1
     ComboObjFun = False
     mode = 1
-    coolEps = False
+    coolEps_p = False
+    coolEps_q = False
     floorEps_p = 1e-8
     floorEps_q = 1e-8
     coolEpsFact = 2.
@@ -641,6 +642,7 @@ class Update_IRLS(InversionDirective):
             reg.model = self.invProb.model
 
         self.phi_dm = []
+        self.phi_dmx = []
 
     def endIter(self):
 
@@ -708,13 +710,24 @@ class Update_IRLS(InversionDirective):
                 return
 
             self.phi_dm += [np.sum((self.invProb.l2model - self.invProb.model)**2.)]
-            if self.coolEps:
+            self.phi_dmx += [np.sum((self.reg.objfcts[0].objfcts[1].cellDiffStencil*self.invProb.l2model - self.reg.objfcts[0].objfcts[1].cellDiffStencil*self.invProb.model)**2.)]
+            if self.coolEps_p:
 
                 for reg in self.reg.objfcts:
-                    if reg.eps_q > self.floorEps_q:
+                    if np.all([reg.eps_q > self.floorEps_q, self.phi_dm[self.IRLSiter] >= self.phi_dm[self.IRLSiter-1]]):
                         reg.eps_q /= self.coolEpsFact
-                    if reg.eps_p > self.floorEps_p:
+                    else:
+                        self.coolEps_p = False
+
+            if self.coolEps_q:
+
+                for reg in self.reg.objfcts:
+
+                    if np.all([reg.eps_p > self.floorEps_p, self.phi_dmx[self.IRLSiter] >= self.phi_dmx[self.IRLSiter-1]]):
                         reg.eps_p /= self.coolEpsFact
+                    else:
+                        self.coolEps_q = False
+
 
             # phi_m_last = []
             for reg in self.reg.objfcts:
