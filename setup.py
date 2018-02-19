@@ -39,7 +39,7 @@ setup(
         'pymatsolver>=0.1.1',
         'ipython',
         'matplotlib',
-        'properties>=0.3.6b0',
+        'properties>=0.4.0b1',
         'vectormath',
         'discretize',
     ],
