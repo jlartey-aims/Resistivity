@@ -630,6 +630,20 @@ class BaseRegularization(ObjectiveFunction.BaseObjectiveFunction):
         return mD.T * (self.W.T * (self.W * (mD * v)))
 
 
+class BaseDeriv(BaseRegularization):
+    def __init__(self, mesh=None, **kwargs):
+        super(BaseDeriv, self).__init__(mesh, **kwargs)
+
+    mrefInSmooth = properties.Bool(
+        "include mref in the smoothness calculation?", default=False
+    )
+
+    @properties.observer('mrefInSmooth')
+    def _mirror_mref_to_objfctlist(self, change):
+        if change["value"] == False:
+            self.mref = Utils.Zero()
+
+
 ###############################################################################
 #                                                                             #
 #                        Base Combo Regularization                            #
@@ -645,21 +659,26 @@ class BaseComboRegularization(ObjectiveFunction.ComboObjectiveFunction):
         super(BaseComboRegularization, self).__init__(
             objfcts=objfcts, multipliers=None
         )
+
         self.regmesh = RegularizationMesh(mesh)
         if "indActive" in kwargs.keys():
             indActive = kwargs.pop("indActive")
             self.regmesh.indActive = indActive
+
         Utils.setKwargs(self, **kwargs)
 
         # link these attributes
         linkattrs = [
-            'regmesh', 'indActive', 'cell_weights', 'mapping'
+            'regmesh', 'indActive', 'cell_weights', 'mapping', 'mrefInSmooth'
         ]
 
         for attr in linkattrs:
             val = getattr(self, attr)
             if val is not None:
-                [setattr(fct, attr, val) for fct in self.objfcts]
+                [
+                    setattr(fct, attr, val) for fct in self.objfcts if
+                    getattr(fct, attr, None) is not None
+                ]
 
     # Properties
     alpha_s = Props.Float("smallness weight")
@@ -868,7 +887,7 @@ class SimpleSmall(BaseRegularization):
             return Utils.Identity()
 
 
-class SimpleSmoothDeriv(BaseRegularization):
+class SimpleSmoothDeriv(BaseDeriv):
     """
     Base Simple Smooth Regularization. This base class regularizes on the first
     spatial derivative, not considering length scales, in the provided
@@ -911,9 +930,9 @@ class SimpleSmoothDeriv(BaseRegularization):
             mesh=mesh, **kwargs
         )
 
-    mrefInSmooth = properties.Bool(
-        "include mref in the smoothness calculation?", default=False
-    )
+    # mrefInSmooth = properties.Bool(
+    #     "include mref in the smoothness calculation?", default=False
+    # )
 
     @property
     def _multiplier_pair(self):
@@ -989,27 +1008,18 @@ class Simple(BaseComboRegularization):
     ):
 
         objfcts = [
-            SimpleSmall(mesh=mesh, **kwargs),
-            SimpleSmoothDeriv(
-                mesh=mesh, orientation='x',
-                **kwargs
-            )
+            SimpleSmall(mesh=mesh),
+            SimpleSmoothDeriv(mesh=mesh, orientation='x')
         ]
 
         if mesh.dim > 1:
             objfcts.append(
-                SimpleSmoothDeriv(
-                    mesh=mesh, orientation='y',
-                    **kwargs
-                )
+                SimpleSmoothDeriv(mesh=mesh, orientation='y')
             )
 
         if mesh.dim > 2:
             objfcts.append(
-                SimpleSmoothDeriv(
-                    mesh=mesh, orientation='z',
-                    **kwargs
-                )
+                SimpleSmoothDeriv(mesh=mesh, orientation='z')
             )
 
         super(Simple, self).__init__(
@@ -1070,7 +1080,7 @@ class Small(BaseRegularization):
         return Utils.sdiag(np.sqrt(self.regmesh.vol))
 
 
-class SmoothDeriv(BaseRegularization):
+class SmoothDeriv(BaseDeriv):
     """
     Base Smooth Regularization. This base class regularizes on the first
     spatial derivative in the provided orientation
@@ -1087,9 +1097,9 @@ class SmoothDeriv(BaseRegularization):
     :param numpy.ndarray cell_weights: vector of cell weights (applied in all terms)
     """
 
-    mrefInSmooth = properties.Bool(
-        "include mref in the smoothness calculation?", default=False
-    )
+    # mrefInSmooth = properties.Bool(
+    #     "include mref in the smoothness calculation?", default=False
+    # )
 
     def __init__(
         self, mesh, orientation='x', **kwargs
@@ -1146,7 +1156,7 @@ class SmoothDeriv(BaseRegularization):
         return Utils.sdiag(np.sqrt(Ave * vol)) * D
 
 
-class SmoothDeriv2(BaseRegularization):
+class SmoothDeriv2(BaseDeriv):
     """
     Base Smooth Regularization. This base class regularizes on the second
     spatial derivative in the provided orientation
@@ -1254,21 +1264,21 @@ class Tikhonov(BaseComboRegularization):
         **kwargs
     ):
         objfcts = [
-            Small(mesh=mesh, **kwargs),
-            SmoothDeriv(mesh=mesh, orientation='x', **kwargs),
-            SmoothDeriv2(mesh=mesh, orientation='x', **kwargs)
+            Small(mesh=mesh),
+            SmoothDeriv(mesh=mesh, orientation='x'),
+            SmoothDeriv2(mesh=mesh, orientation='x')
         ]
 
         if mesh.dim > 1:
             objfcts += [
-                SmoothDeriv(mesh=mesh, orientation='y', **kwargs),
-                SmoothDeriv2(mesh=mesh, orientation='y', **kwargs)
+                SmoothDeriv(mesh=mesh, orientation='y'),
+                SmoothDeriv2(mesh=mesh, orientation='y')
             ]
 
         if mesh.dim > 2:
             objfcts += [
-                SmoothDeriv(mesh=mesh, orientation='z', **kwargs),
-                SmoothDeriv2(mesh=mesh, orientation='z', **kwargs)
+                SmoothDeriv(mesh=mesh, orientation='z'),
+                SmoothDeriv2(mesh=mesh, orientation='z')
             ]
 
         super(Tikhonov, self).__init__(
@@ -1657,15 +1667,15 @@ class Sparse(BaseComboRegularization):
     ):
 
         objfcts = [
-            SparseSmall(mesh=mesh, **kwargs),
-            SparseDeriv(mesh=mesh, orientation='x', **kwargs)
+            SparseSmall(mesh=mesh),
+            SparseDeriv(mesh=mesh, orientation='x')
         ]
 
         if mesh.dim > 1:
-            objfcts.append(SparseDeriv(mesh=mesh, orientation='y', **kwargs))
+            objfcts.append(SparseDeriv(mesh=mesh, orientation='y'))
 
         if mesh.dim > 2:
-            objfcts.append(SparseDeriv(mesh=mesh, orientation='z', **kwargs))
+            objfcts.append(SparseDeriv(mesh=mesh, orientation='z'))
 
         super(Sparse, self).__init__(
             mesh=mesh, objfcts=objfcts,

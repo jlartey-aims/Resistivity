@@ -17,8 +17,9 @@ np.random.seed(639)
 
 IGNORE_ME = [
     'BaseRegularization',
+    'BaseDeriv',
     'BaseComboRegularization',
-    'BaseSparse'
+    'BaseSparse',
 ]
 
 
@@ -344,6 +345,30 @@ class RegularizationTests(unittest.TestCase):
             self.assertTrue(np.all(reg.indActive == fct.regmesh.indActive))
             for fct in reg.objfcts
         ]
+
+    def test_mrefInSmooth(self):
+        mesh = Mesh.TensorMesh([8, 7, 6])
+        mref = np.random.rand(mesh.nC)
+        reg = Regularization.Tikhonov(mesh, mrefInSmooth=True, mref=mref)
+
+        self.assertTrue(reg.mrefInSmooth==True)
+        [
+            self.assertTrue(np.all(reg.mref == fct.mref))
+            for fct in reg.objfcts
+        ]
+        [
+            self.assertTrue(reg.mrefInSmooth == True)
+            for fct in reg.objfcts[1:]
+        ]
+        self.assertTrue(reg(mref) == 0)
+
+        reg.mrefInSmooth = False
+        self.assertTrue(np.all(reg.mref == reg.objfcts[0].mref))
+        [
+            self.assertTrue(reg.mrefInSmooth == False)
+            for fct in reg.objfcts[1:]
+        ]
+        self.assertTrue(reg(mref) != 0)
 
     def test_nC_residual(self):
 
